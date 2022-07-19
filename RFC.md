@@ -1,7 +1,7 @@
 > # RFC: VampireCommandFramework 
 > A framework for adding commands to VRising mods.
 >
-> ##### Updated `2022-07-16`
+> ##### Updated `2022-07-19`
 > ##### Status `WIP`
 
 #
@@ -97,4 +97,10 @@ public class MyHorseCommands
 	[ChatCommand("bar")
 	public void BarHorse(CommandContext ctx) => ctx.Reply($"bar {_myHorse}");
 }
+
+```
+### Registering commands
+```csharp
+// Registers all valid commands for handling on the server
+CommandRegistry.RegisterAssembly(typeof(MyHorseCommands).Assembly);
 ```
