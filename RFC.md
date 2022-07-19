@@ -78,3 +78,23 @@ CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
 [ChatCommand("racestats")]
 public void RaceStats(CommandContext ctx, NamedHorse target) => ctx.Reply(target.Stats); 
 ```
+
+### Custom constructors
+```csharp
+public class MyHorseCommands
+{
+	HorseModel _myHorse;
+	public MyCommands(CommandContext ctx)
+	{
+		_myHorse = FindMyHorse(ctx);
+	}
+	
+	// Now both of these commands will be run on an instance run through your constructor
+	// and can access this instance variable.
+	[ChatCommand("foo")
+	public void FooHorse(CommandContext ctx) => ctx.Reply($"foo {_myHorse}");
+	
+	[ChatCommand("bar")
+	public void BarHorse(CommandContext ctx) => ctx.Reply($"bar {_myHorse}");
+}
+```
