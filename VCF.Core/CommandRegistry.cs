@@ -202,25 +202,20 @@ namespace VampireCommandFramework
 					var (converter, convertMethod) = customConverter;
 
 					object result;
-					var tryParseArgs = new object[] { ctx, arg, null /* out result*/ };
+					var tryParseArgs = new object[] { ctx, arg };
 					try
 					{
 						result = convertMethod.Invoke(converter, tryParseArgs);
+						commandArgs[i + 1] = result;
+					}
+					catch(ChatCommandException e)
+					{
+						// todo: error matched type but failed to convert arg to type
+						return null;
 					}
 					catch (Exception)
 					{
 						// todo: failed custom converter unhandled
-						return null;
-					}
-
-					if (result is bool successful && successful)
-					{
-						commandArgs[i + 1] = tryParseArgs[2];
-						continue;
-					}
-					else
-					{
-						// todo: error matched type but failed to convert arg to type
 						return null;
 					}
 				}
@@ -266,7 +261,7 @@ namespace VampireCommandFramework
 			}
 
 			object converterInstance = Activator.CreateInstance(converter);
-			MethodInfo methodInfo = converter.GetMethod("TryParse", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod);
+			MethodInfo methodInfo = converter.GetMethod("Parse", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod);
 			if (methodInfo == null)
 			{
 				// can't bud

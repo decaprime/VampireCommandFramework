@@ -136,13 +136,12 @@ namespace VCF.RoleMiddleware
 
 		public class RoleConverter : ChatCommandArgumentConverter<Role>
 		{
-			public override bool TryParse(CommandContext ctx, string input, out Role result)
+			public override Role Parse(CommandContext ctx, string input)
 			{
 				var repo = ctx.Services.GetRequiredService<RoleRepository>();
 				if (repo.Roles.Contains(input))
 				{
-					result = new Role(input);
-					return true;
+					return new Role(input);
 				}
 
 				throw ctx.Error("Invalid role"); // no we shouldn't do this because it's a try parse you dummy
@@ -153,10 +152,10 @@ namespace VCF.RoleMiddleware
 		// currently we'll run through them and you'd get all the errors for methods you're not matching ultimately.		
 		public class UserConverter : ChatCommandArgumentConverter<User>
 		{
-			public override bool TryParse(CommandContext ctx, string input, out User result)
+			public override User Parse(CommandContext ctx, string input)
 			{
-				result = new User(input); // IDK how we handle offline users
-				return true;
+				
+				return new User(input); // IDK how we handle offline users
 			}
 		}
 

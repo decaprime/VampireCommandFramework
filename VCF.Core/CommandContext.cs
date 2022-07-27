@@ -24,9 +24,10 @@ namespace VampireCommandFramework
 		}
 
 		// todo: expand this, just throw from here as void and build a handler that can message user/log.
+		// note: return exception lets callers throw ctx.Error() and control flow is obvious 
 		internal Exception Error(string LogMessage)
 		{
-			throw new ChatCommandException();
+			return new ChatCommandException(LogMessage);
 		}
 	}
 }

@@ -49,11 +49,11 @@ public enum HorseColor { Black, Brown, Blonde }
 
 public class NamedHorseConverter : ChatCommandArgumentConverter<NamedHorse?>
 {
-	public override bool TryParse(CommandContext ctx, string input, out NamedHorse? result)
+	// Only Ted apparently
+	public override NamedHorse? Parse(CommandContext ctx, string input)
 	{
-		/* check some cache or perform entity query */  
-		result = null;
-		return (input == "Ted");
+		/* check some cache or perform entity query, null here to not pull in more */
+		return (input == "Ted") ? null : throw new ArgumentException("baaa");
 	}
 }
 
