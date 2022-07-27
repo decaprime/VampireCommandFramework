@@ -24,9 +24,9 @@ namespace VampireCommandFramework
 		}
 
 		// todo: expand this, just throw from here as void and build a handler that can message user/log.
-		internal Exception Error(string v)
+		internal Exception Error(string LogMessage)
 		{
-			throw new NotImplementedException();
+			throw new ChatCommandException();
 		}
 	}
 }

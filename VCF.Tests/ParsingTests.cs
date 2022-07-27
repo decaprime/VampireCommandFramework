@@ -58,6 +58,14 @@ namespace VCF.Tests
 		}
 
 		[Test]
+		public void CanCallWithOverloadedName()
+		{
+			CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
+			CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);
+			Assert.IsNotNull(CommandRegistry.Handle(null, ".horse call 123 41234"));
+		}
+
+		[Test]
 		public void CanCallWithConverter()
 		{
 			CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));

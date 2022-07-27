@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using VampireCommandFramework;
@@ -9,13 +10,14 @@ using VampireCommandFramework;
 // TODO: Could move to seperate project to formalize no bidirectional dependency to Core
 namespace VCF.RoleMiddleware
 {
-	// This middleware will check if the user has the correct role to execute the command. It uses
-	// a JSON config file that maps the roles to the array of userids in that role. You can put
-	// a role inside of a role (up to a depth of 4 with no repeats) to collect groups together
-	// 
-	public class RolePermissionMiddleware
+	public class RolePermissionMiddleware : CommandMiddleware
 	{
-
+		public override bool CanExecute(CommandContext ctx, ChatCommandAttribute command, MethodInfo method)
+		{
+			if (ctx.User.IsAdmin) return true;
+			var storage = ctx.Services.GetService<RoleRepository>();
+			return storage.CanUserExecuteCommand(ctx.User.CharacterName.ToString(), command.Id); // TODO: Better ID for user
+		}
 	}
 
 
@@ -32,11 +34,11 @@ namespace VCF.RoleMiddleware
 		HashSet<string> Roles { get; }
 	}
 
-	public class RoleRepository<T> where T : IRoleStorage
+	public class RoleRepository
 	{
-		private T _storage;
+		private IRoleStorage _storage;
 		
-		public RoleRepository(T storage)
+		public RoleRepository(IRoleStorage storage)
 		{
 			_storage = storage;
 		}
@@ -72,9 +74,18 @@ namespace VCF.RoleMiddleware
 
 		public HashSet<string> ListUserRoles(string user) => _storage.GetUserRoles(user);
 
-		public HashSet<string> ListCommandRoles(string user) => _storage.GetCommandPermission(user);
+		public HashSet<string> ListCommandRoles(string command) => _storage.GetCommandPermission(command);
 
 		public HashSet<string> Roles => _storage.Roles;
+
+		public bool CanUserExecuteCommand(string user, string command)
+		{
+			var roles = _storage.GetCommandPermission(command);
+			if (roles == null) return false;
+			var userRoles = _storage.GetUserRoles(user);
+			if (userRoles == null) return false;
+			return roles.Any(userRoles.Contains);
+		}
 	}
 
 	public class MemoryRoleStorage : IRoleStorage
@@ -127,7 +138,7 @@ namespace VCF.RoleMiddleware
 		{
 			public override bool TryParse(CommandContext ctx, string input, out Role result)
 			{
-				var repo = ctx.Services.GetRequiredService<RoleRepository<IRoleStorage>>();
+				var repo = ctx.Services.GetRequiredService<RoleRepository>();
 				if (repo.Roles.Contains(input))
 				{
 					result = new Role(input);
@@ -150,7 +161,7 @@ namespace VCF.RoleMiddleware
 		}
 
 
-		private RoleRepository<MemoryRoleStorage> _roleRepository = new(new());
+		private RoleRepository _roleRepository = new(new MemoryRoleStorage());
 
 		// Role Management commands
 		// - Create a role
@@ -192,10 +203,23 @@ namespace VCF.RoleMiddleware
 			_roleRepository.RemoveUserFromRole(user.Id, role.Name);
 		}
 
+
 		[ChatCommand("list")]
-		public void ListRoles(CommandContext ctx, Role role)
+		public void ListRoles(CommandContext ctx)
 		{
-			ctx.Reply($"Roles: {string.Join(", ", _roleRepository.ListUserRoles(role.Name))}");
+			ctx.Reply("Roles: " + string.Join(", ", _roleRepository.Roles));
+		}
+
+		[ChatCommand("list user")]
+		public void ListRoles(CommandContext ctx, User user)
+		{
+			ctx.Reply($"Roles: {string.Join(", ", _roleRepository.ListUserRoles(user.Id))}");
+		}
+
+		[ChatCommand("list command")]
+		public void ListCommands(CommandContext ctx, Command command)
+		{
+			ctx.Reply($"Roles: {string.Join(", ", _roleRepository.ListCommandRoles(command.Id))}");
 		}
 	}
 }

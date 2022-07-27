@@ -19,21 +19,127 @@ namespace VampireCommandFramework
 
 	public static class CommandRegistry
 	{
+		private class CommandCache
+		{
+			private static Dictionary<Type, HashSet<(string, int)>> _commandAssemblyMap = new();
+
+			private Dictionary<string, Dictionary<int, ChatCommand>> _newCache = new();
+			public void AddCommand(string key, ParameterInfo[] parameters, ChatCommand command)
+			{
+				var p = parameters.Length;
+				var d = parameters.Where(p => p.HasDefaultValue).Count();
+				if (!_newCache.ContainsKey(key))
+				{
+					_newCache.Add(key, new());
+				}
+
+				// somewhat lame datastructure but memory cheap and tiny for space of commands
+				for (var i = (p - d); i <= p; i++)
+				{
+					_newCache[key] = _newCache.GetValueOrDefault(key, new()) ?? new();
+					if (_newCache[key].ContainsKey(i))
+					{
+						Log.Warning($"Command {key} has multiple commands with {i} parameters");
+						continue;
+					}
+					_newCache[key][i] = command;
+					var typeKey = command.Method.DeclaringType;
+
+					var usedParams = _commandAssemblyMap.TryGetValue(typeKey, out var existing) ? existing : new();
+					usedParams.Add((key, i));
+					_commandAssemblyMap[typeKey] = usedParams;
+				}
+			}
+
+			public (ChatCommand command, string[] args) GetCommand(string rawInput)
+			{
+				// todo: I think allows for overlap between .foo "bar" and .foo bar <no parameters>
+				foreach(var (key,argCounts) in _newCache)
+				{
+					if (rawInput.StartsWith(key))
+					{
+						var remainder = rawInput.Substring(key.Length).Trim();
+						var parameters = GetParts(remainder).ToArray();
+						if (argCounts.TryGetValue(parameters.Length, out var cmd))
+						{
+							return (cmd, parameters);
+						}
+					}
+				}
+				
+				return (null, null);
+			}
+
+			public void RemoveCommandsFromType(Type t)
+			{
+				if (!_commandAssemblyMap.TryGetValue(t, out var commands))
+				{
+					return;
+				}
+				foreach (var (key, index) in commands)
+				{
+					if (!_newCache.TryGetValue(key, out var dict))
+					{
+						continue;
+					}
+					dict.Remove(index);
+				}
+				_commandAssemblyMap.Remove(t);
+			}
+
+			public void Clear()
+			{
+				_newCache.Clear();
+			}
+
+			// todo: test and prevent from blowing up and give good feedback
+			// also todo: maybe bad code to rewrite, look later
+			internal static IEnumerable<string> GetParts(string input)
+			{
+				var parts = input.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+				for (var i = 0; i < parts.Length; i++)
+				{
+					if (parts[i].StartsWith('"'))
+					{
+						parts[i] = parts[i].TrimStart('"');
+						for (var start = i++; i < parts.Length; i++)
+						{
+							if (parts[i].EndsWith('"'))
+							{
+								parts[i] = parts[i].TrimEnd('"');
+								yield return string.Join(" ", parts[start..(i + 1)]);
+								break;
+							}
+						}
+					}
+					else
+					{
+						yield return parts[i];
+					}
+				}
+			}
+
+			internal void Reset()
+			{
+				throw new NotImplementedException();
+			}
+		}
+
+		private static CommandCache _cache = new();
+
 		public record ChatCommand(ChatCommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters);
 		private static Dictionary<Type, (object instance, MethodInfo tryParse)> _converters = new();
-		private static Dictionary<string, ChatCommand> _commandCache = new();
-		private static Dictionary<Assembly, HashSet<string>> _commandAssemblyMap = new();
+
 
 		private const string DEFAULT_PREFIX = ".";
-		
+
 		public static List<CommandMiddleware> Middlewares { get; } = new();
 
 		public static void Reset()
 		{
 			// testability and a bunch of static crap, I know...
-			_converters.Clear();
-			_commandCache.Clear();
-			Middlewares.Clear();
+			Middlewares.Clear(); _converters.Clear();
+			_cache = new();
 		}
 
 
@@ -62,27 +168,11 @@ namespace VampireCommandFramework
 				Middlewares.ForEach(m => m.AfterExecute(ctx, command.Attribute, command.Method));
 			}
 
-			// now gonna linear scan my dictionary because we're doing the dumb thing first
-			var matches = _commandCache.Where(kvp => input.StartsWith(kvp.Key));
-			if (!matches.Any()) return null; // or todo: print help texts
 
-			if (matches.Count() > 1)
-			{
-				// todo: abiguous match, print error
-				return null;
-			}
+			var (command, args) = _cache.GetCommand(input);
 
-			var (prefix, command) = matches.Single();
-
-			// todo: (not here) but we elsewhere assume name overloading like .net, this assumes single match, will collide currently
-
-			var remainder = input.Substring(prefix.Length);
-			remainder = remainder.Trim(' ');
-
-			// todo: support quote encoding and don't use simple split
-
-			var args = string.IsNullOrWhiteSpace(remainder) ? Array.Empty<string>() : remainder.Split(" ");
-
+			if (command == null) return null; // NOT FOUND;
+	
 			var argCount = args.Length;
 			var paramsCount = command.Parameters.Length;
 			var commandArgs = new object[paramsCount + 1];
@@ -193,106 +283,96 @@ namespace VampireCommandFramework
 			_converters.Add(convertFrom, (converterInstance, methodInfo));
 		}
 
-		public static void RegisterAssembly(Assembly assembly, string? assemblyPrefix = null)
+		public static void RegisterAssembly(Assembly assembly, string assemblyPrefix = null)
 		{
 			var types = assembly.GetTypes();
 			foreach (var type in types)
 			{
-				var groupAttr = type.GetCustomAttribute<ChatCommandGroupAttribute>();
-				if (groupAttr != null)
+				RegisterCommandType(type, assemblyPrefix);
+			}
+		}
+
+		public static void RegisterCommandType(Type type, string assemblyPrefix = null)
+		{
+			var groupAttr = type.GetCustomAttribute<ChatCommandGroupAttribute>();
+			var assembly = type.Assembly;
+			if (groupAttr != null)
+			{
+				// handle groups - IDK later
+			}
+
+			var methods = type.GetMethods();
+
+			var contextConstructor = type.GetConstructor(new[] { typeof(CommandContext) });
+
+			foreach (var method in methods)
+			{
+				TryRegisterMethod(assembly, assemblyPrefix, groupAttr, contextConstructor, method);
+			}
+		}
+
+		private static void TryRegisterMethod(Assembly assembly, string assemblyPrefix, ChatCommandGroupAttribute groupAttr, ConstructorInfo contextConstructor, MethodInfo method)
+		{
+			// TODO: multiple attributes check
+			var commandAttr = method.GetCustomAttribute<ChatCommandAttribute>();
+			if (commandAttr == null) return;
+
+			// check for CommandContext as first argument to method
+			var paramInfos = method.GetParameters();
+			var first = paramInfos.FirstOrDefault();
+			if (first == null || first.ParameterType != typeof(CommandContext))
+			{
+				Log.Error($"Method {method.Name} has no CommandContext as first argument");
+				return;
+			}
+			var parameters =  paramInfos.Skip(1).ToArray();
+
+			var canConvert = parameters.All(param =>
+			{
+				if (_converters.ContainsKey(param.ParameterType))
 				{
-					// handle groups - IDK later
+					Log.Debug($"Method {method.Name} has a parameter of type {param.ParameterType.Name} which is registered as a converter");
+					return true;
 				}
 
-				var methods = type.GetMethods();
-
-				var contextConstructor = type.GetConstructor(new[] { typeof(CommandContext) });
-
-				foreach (var method in methods)
+				var converter = TypeDescriptor.GetConverter(param.ParameterType);
+				if (converter == null ||
+					!converter.CanConvertFrom(typeof(string)))
 				{
-					// TODO: multiple attributes check
-					var commandAttr = method.GetCustomAttribute<ChatCommandAttribute>();
-					if (commandAttr == null) continue;
+					Log.Warning($"Parameter {param.Name} could not be converted, so {method.Name} will be ignored.");
+					return false;
+				}
 
-					// check for CommandContext as first argument to method
-					var paramInfos = method.GetParameters();
-					var first = paramInfos.FirstOrDefault();
-					if (first == null || first.ParameterType != typeof(CommandContext))
-					{
-						Log.Error($"Method {method.Name} has no CommandContext as first argument");
-						continue;
-					}
+				return true;
+			});
 
-					var canConvert = paramInfos.Skip(1).All(param =>
-					{
-						if (_converters.ContainsKey(param.ParameterType))
-						{
-							Log.Debug($"Method {method.Name} has a parameter of type {param.ParameterType.Name} which is registered as a converter");
-							return true;
-						}
+			if (!canConvert) return;
 
-						var converter = TypeDescriptor.GetConverter(param.ParameterType);
-						if (converter == null ||
-							!converter.CanConvertFrom(typeof(string)))
-						{
-							Log.Warning($"Parameter {param.Name} could not be converted, so {method.Name} will be ignored.");
-							return false;
-						}
+			var command = new ChatCommand(commandAttr, method, contextConstructor, parameters);
 
-						return true;
-					});
+			// todo include prefix and group in here, this shoudl be a  string match
+			// todo handle collisons here
 
-					if (canConvert)
-					{
-						var command = new ChatCommand(commandAttr, method, contextConstructor, paramInfos.Skip(1).ToArray());
-
-
-						// todo include prefix and group in here, this shoudl be a  string match
-						// todo handle collisons here
-						
-						// BAD CODE INC.. permute and cache keys -> command
-						var groupNames = groupAttr == null ? new[] { "" } : groupAttr.ShortHand == null ? new[] { $"{groupAttr.Name} " } : new[] { $"{groupAttr.Name} ", $"{groupAttr.ShortHand} ", };
-						var names = commandAttr.ShortHand == null ? new[] { commandAttr.Name } : new[] { commandAttr.Name, commandAttr.ShortHand };
-						var prefix = groupAttr?.Prefix ?? assemblyPrefix ?? DEFAULT_PREFIX; // TODO: get from attribute/config
-						foreach (var group in groupNames)
-						{
-							foreach (var name in names)
-							{
-								var key = $"{prefix}{group}{name}";
-								if (_commandCache.ContainsKey(key))
-								{
-									Log.Warning($"Failed to add '{key}, this was already in use.");
-									continue;
-								}
-								_commandCache.Add(key, command);
-
-								// maintain assembly map for removal
-								if (_commandAssemblyMap.TryGetValue(assembly, out var commandKeys))
-								{
-									commandKeys.Add(key);
-								}
-								else
-								{
-									_commandAssemblyMap.Add(assembly, new HashSet<string> { key });
-								}
-							}
-						}
-					}
+			// BAD CODE INC.. permute and cache keys -> command
+			var groupNames = groupAttr == null ? new[] { "" } : groupAttr.ShortHand == null ? new[] { $"{groupAttr.Name} " } : new[] { $"{groupAttr.Name} ", $"{groupAttr.ShortHand} ", };
+			var names = commandAttr.ShortHand == null ? new[] { commandAttr.Name } : new[] { commandAttr.Name, commandAttr.ShortHand };
+			var prefix = groupAttr?.Prefix ?? assemblyPrefix ?? DEFAULT_PREFIX; // TODO: get from attribute/config
+			foreach (var group in groupNames)
+			{
+				foreach (var name in names)
+				{
+					var key = $"{prefix}{group}{name}";
+					_cache.AddCommand(key, parameters, command);
 				}
 			}
 		}
 
 		public static void UnregisterAssembly(Assembly assembly)
 		{
-			// todo: maintain a map from assembly -> command
-
-			if (!_commandAssemblyMap.TryGetValue(assembly, out var commandKeys)) return;
-			foreach (var key in commandKeys)
+			foreach (var type in assembly.DefinedTypes)
 			{
-				_commandCache.Remove(key);
+				_cache.RemoveCommandsFromType(type);
 			}
-
-			_commandAssemblyMap.Remove(assembly);
 		}
 	}
 }
