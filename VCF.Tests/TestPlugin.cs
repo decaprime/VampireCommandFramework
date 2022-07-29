@@ -7,19 +7,19 @@ namespace Consumer;
 public class HorseCommands
 {
 	private Entity? ClosestHorse;
-	public HorseCommands(CommandContext ctx)
+	public HorseCommands(ICommandContext ctx)
 	{
 		ClosestHorse = HorseUtility.FindClosestHorse(ctx);
 	}
 
 	[ChatCommand("breed")]
-	public void Breed(CommandContext ctx)
+	public void Breed(ICommandContext ctx)
 	{
 		Console.WriteLine("I don't mean to stare, we don't have to breed.");
 	}
 
 	[ChatCommand("call")]
-	public void Call(CommandContext ctx, NamedHorse? target = null)
+	public void Call(ICommandContext ctx, NamedHorse? target = null)
 	{
 		Console.WriteLine($"You called? {(target == null ? "Default" : "Closest")}");
 		var horse = target?.Horse ?? ClosestHorse!;
@@ -27,18 +27,18 @@ public class HorseCommands
 	}
 
 	[ChatCommand("call")]
-	public void Call(CommandContext ctx, int a, int b)
+	public void Call(ICommandContext ctx, int a, int b)
 	{
 	}
 
 	[ChatCommand("set speed")]
-	public void SetSpeed(CommandContext ctx, float newSpeed)
+	public void SetSpeed(ICommandContext ctx, float newSpeed)
 	{
 		/* ... */
 	}
 
 	[ChatCommand("color")]
-	public void ColorHorse(CommandContext ctx, HorseColor color)
+	public void ColorHorse(ICommandContext ctx, HorseColor color)
 	{
 		/* ... */
 	}
@@ -50,16 +50,16 @@ public enum HorseColor { Black, Brown, Blonde }
 public class NamedHorseConverter : ChatCommandArgumentConverter<NamedHorse?>
 {
 	// Only Ted apparently
-	public override NamedHorse? Parse(CommandContext ctx, string input)
+	public override NamedHorse? Parse(ICommandContext ctx, string input)
 	{
 		/* check some cache or perform entity query, null here to not pull in more */
-		return (input == "Ted") ? null : throw new ArgumentException("baaa");
+		return (input == "Ted") ? null : throw ctx.Error("Only T");
 	}
 }
 
 internal class HorseUtility
 {
-	internal static Entity? FindClosestHorse(CommandContext ctx)
+	internal static Entity? FindClosestHorse(ICommandContext ctx)
 	{
 		return null;
 	}

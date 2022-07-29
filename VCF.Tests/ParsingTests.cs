@@ -1,6 +1,9 @@
 using Consumer;
 using VampireCommandFramework;
 using NUnit.Framework;
+using Moq;
+using Wetstone.Hooks;
+using ProjectM.Network;
 
 namespace VCF.Tests
 {
@@ -41,7 +44,7 @@ namespace VCF.Tests
 			CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);
 			Assert.IsNotNull(CommandRegistry.Handle(null, ".horse set speed 12.2"));
 		}
-		
+
 		[Test]
 		public void CanCallWithGroupShorthand()
 		{
@@ -68,10 +71,11 @@ namespace VCF.Tests
 		[Test]
 		public void CanCallWithConverter()
 		{
+			var ctx = new TestContext();
 			CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
 			CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);
-			Assert.IsNotNull(CommandRegistry.Handle(null, ".horse call Ted"));
-			Assert.IsNull(CommandRegistry.Handle(null, ".horse call Bill"));
+			Assert.IsNotNull(CommandRegistry.Handle(ctx, ".horse call Ted"));
+			Assert.IsNull(CommandRegistry.Handle(ctx, ".horse call Bill"));
 		}
 
 		[Test]
@@ -81,6 +85,21 @@ namespace VCF.Tests
 			Assert.IsNotNull(CommandRegistry.Handle(null, ".horse color Black"));
 			Assert.IsNotNull(CommandRegistry.Handle(null, ".horse color Brown"));
 			Assert.IsNull(CommandRegistry.Handle(null, ".horse color Purple"));
+		}
+
+		class TestContext : ICommandContext
+		{
+			public IServiceProvider Services => throw new NotImplementedException();
+
+			public User User => throw new NotImplementedException();
+
+			public ChatCommandException Error(string LogMessage) => new ChatCommandException(LogMessage);
+
+
+			public void Reply(string v)
+			{
+				Log.Debug(v);
+			}
 		}
 	}
 }

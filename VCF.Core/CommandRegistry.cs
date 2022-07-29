@@ -143,9 +143,9 @@ namespace VampireCommandFramework
 		}
 
 
-		public static ChatCommand Handle(CommandContext ctx, string input)
+		public static ChatCommand Handle(ICommandContext ctx, string input)
 		{
-			static bool HandleCanExecute(CommandContext ctx, ChatCommand command)
+			static bool HandleCanExecute(ICommandContext ctx, ChatCommand command)
 			{
 				foreach (var middleware in Middlewares)
 				{
@@ -158,12 +158,12 @@ namespace VampireCommandFramework
 			}
 
 			// todo: rethink, maybe you only want 1 door here, people will confuse these and it's probably possible to collapse
-			static void HandleBeforeExecute(CommandContext ctx, ChatCommand command)
+			static void HandleBeforeExecute(ICommandContext ctx, ChatCommand command)
 			{
 				Middlewares.ForEach(m => m.BeforeExecute(ctx, command.Attribute, command.Method));
 			}
 
-			static void HandleAfterExecute(CommandContext ctx, ChatCommand command)
+			static void HandleAfterExecute(ICommandContext ctx, ChatCommand command)
 			{
 				Middlewares.ForEach(m => m.AfterExecute(ctx, command.Attribute, command.Method));
 			}
@@ -208,15 +208,17 @@ namespace VampireCommandFramework
 						result = convertMethod.Invoke(converter, tryParseArgs);
 						commandArgs[i + 1] = result;
 					}
-					catch(ChatCommandException e)
+					catch(TargetInvocationException tie) when (tie.InnerException is ChatCommandException e)
 					{
 						// todo: error matched type but failed to convert arg to type
+						Log.Debug($"Hit ChatCommandException: {e.Message}");
 						return null;
 					}
-					catch (Exception)
+					catch (Exception e)
 					{
 						// todo: failed custom converter unhandled
-						return null;
+						//return null;
+						throw e;
 					}
 				}
 				else
@@ -298,7 +300,7 @@ namespace VampireCommandFramework
 
 			var methods = type.GetMethods();
 
-			var contextConstructor = type.GetConstructor(new[] { typeof(CommandContext) });
+			var contextConstructor = type.GetConstructor(new[] { typeof(ICommandContext) });
 
 			foreach (var method in methods)
 			{
@@ -311,11 +313,11 @@ namespace VampireCommandFramework
 			// TODO: multiple attributes check
 			var commandAttr = method.GetCustomAttribute<ChatCommandAttribute>();
 			if (commandAttr == null) return;
-
+			
 			// check for CommandContext as first argument to method
 			var paramInfos = method.GetParameters();
 			var first = paramInfos.FirstOrDefault();
-			if (first == null || first.ParameterType != typeof(CommandContext))
+			if (first == null || first.ParameterType is ICommandContext)
 			{
 				Log.Error($"Method {method.Name} has no CommandContext as first argument");
 				return;

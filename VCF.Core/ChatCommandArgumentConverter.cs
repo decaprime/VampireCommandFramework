@@ -2,6 +2,6 @@
 {
 	public abstract class ChatCommandArgumentConverter<T>
 	{
-		public abstract T Parse(CommandContext ctx, string input);
+		public abstract T Parse(ICommandContext ctx, string input);
 	}
 }

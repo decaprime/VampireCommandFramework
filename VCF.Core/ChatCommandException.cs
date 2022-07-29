@@ -4,7 +4,7 @@ using System.Runtime.Serialization;
 namespace VampireCommandFramework
 {
 	[Serializable]
-	internal class ChatCommandException : Exception
+	public class ChatCommandException : Exception
 	{
 		public ChatCommandException()
 		{

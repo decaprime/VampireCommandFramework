@@ -12,7 +12,7 @@ namespace VCF.RoleMiddleware
 {
 	public class RolePermissionMiddleware : CommandMiddleware
 	{
-		public override bool CanExecute(CommandContext ctx, ChatCommandAttribute command, MethodInfo method)
+		public override bool CanExecute(ICommandContext ctx, ChatCommandAttribute command, MethodInfo method)
 		{
 			if (ctx.User.IsAdmin) return true;
 			var storage = ctx.Services.GetService<RoleRepository>();
@@ -136,7 +136,7 @@ namespace VCF.RoleMiddleware
 
 		public class RoleConverter : ChatCommandArgumentConverter<Role>
 		{
-			public override Role Parse(CommandContext ctx, string input)
+			public override Role Parse(ICommandContext ctx, string input)
 			{
 				var repo = ctx.Services.GetRequiredService<RoleRepository>();
 				if (repo.Roles.Contains(input))
@@ -152,7 +152,7 @@ namespace VCF.RoleMiddleware
 		// currently we'll run through them and you'd get all the errors for methods you're not matching ultimately.		
 		public class UserConverter : ChatCommandArgumentConverter<User>
 		{
-			public override User Parse(CommandContext ctx, string input)
+			public override User Parse(ICommandContext ctx, string input)
 			{
 				
 				return new User(input); // IDK how we handle offline users
@@ -173,50 +173,50 @@ namespace VCF.RoleMiddleware
 		// - LIst all users for a role
 		// - List roles for user
 		[ChatCommand("create")]
-		public void CreateRole(CommandContext ctx, string name)
+		public void CreateRole(ICommandContext ctx, string name)
 		{
 			_roleRepository.Roles.Add(name);
 		}
 
 		[ChatCommand("allow")]
-		public void AllowCommand(CommandContext ctx, Role role, Command command)
+		public void AllowCommand(ICommandContext ctx, Role role, Command command)
 		{
 			_roleRepository.AddRoleToCommand(command.Id, role.Name);
 		}
 
 		[ChatCommand("deny")]
-		public void DenyCommand(CommandContext ctx, Role role, Command command)
+		public void DenyCommand(ICommandContext ctx, Role role, Command command)
 		{
 			_roleRepository.RemoveRoleFromCommand(command.Id, role.Name);
 		}
 
 		[ChatCommand("assign")]
-		public void AssignUserToRole(CommandContext ctx, User user, Role role)
+		public void AssignUserToRole(ICommandContext ctx, User user, Role role)
 		{
 			_roleRepository.AddUserToRole(user.Id, role.Name);
 		}
 
 		[ChatCommand("unassign")]
-		public void UnassignUserFromRole(CommandContext ctx, User user, Role role)
+		public void UnassignUserFromRole(ICommandContext ctx, User user, Role role)
 		{
 			_roleRepository.RemoveUserFromRole(user.Id, role.Name);
 		}
 
 
 		[ChatCommand("list")]
-		public void ListRoles(CommandContext ctx)
+		public void ListRoles(ICommandContext ctx)
 		{
 			ctx.Reply("Roles: " + string.Join(", ", _roleRepository.Roles));
 		}
 
 		[ChatCommand("list user")]
-		public void ListRoles(CommandContext ctx, User user)
+		public void ListRoles(ICommandContext ctx, User user)
 		{
 			ctx.Reply($"Roles: {string.Join(", ", _roleRepository.ListUserRoles(user.Id))}");
 		}
 
 		[ChatCommand("list command")]
-		public void ListCommands(CommandContext ctx, Command command)
+		public void ListCommands(ICommandContext ctx, Command command)
 		{
 			ctx.Reply($"Roles: {string.Join(", ", _roleRepository.ListCommandRoles(command.Id))}");
 		}
