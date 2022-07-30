@@ -22,6 +22,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<InternalsVisibleTo Include="VCF.Tests"/>
+	</ItemGroup>
+
+	<ItemGroup>
 		<Reference Include="IL2Cppmscorlib">
 			<HintPath>$(UnhollowedDllPath)\Il2Cppmscorlib.dll</HintPath>
 		</Reference>

@@ -19,6 +19,33 @@ namespace VampireCommandFramework
 
 	public static class CommandRegistry
 	{
+
+		// also todo: maybe bad code to rewrite, look later
+		internal static IEnumerable<string> GetParts(string input)
+		{
+			var parts = input.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+			for (var i = 0; i < parts.Length; i++)
+			{
+				if (parts[i].StartsWith('"'))
+				{
+					parts[i] = parts[i].TrimStart('"');
+					for (var start = i++; i < parts.Length; i++)
+					{
+						if (parts[i].EndsWith('"'))
+						{
+							parts[i] = parts[i].TrimEnd('"');
+							yield return string.Join(" ", parts[start..(i + 1)]);
+							break;
+						}
+					}
+				}
+				else
+				{
+					yield return parts[i];
+				}
+			}
+		}
+		
 		private class CommandCache
 		{
 			private static Dictionary<Type, HashSet<(string, int)>> _commandAssemblyMap = new();
@@ -90,33 +117,6 @@ namespace VampireCommandFramework
 			public void Clear()
 			{
 				_newCache.Clear();
-			}
-
-			// todo: test and prevent from blowing up and give good feedback
-			// also todo: maybe bad code to rewrite, look later
-			internal static IEnumerable<string> GetParts(string input)
-			{
-				var parts = input.Split(" ", StringSplitOptions.RemoveEmptyEntries);
-				for (var i = 0; i < parts.Length; i++)
-				{
-					if (parts[i].StartsWith('"'))
-					{
-						parts[i] = parts[i].TrimStart('"');
-						for (var start = i++; i < parts.Length; i++)
-						{
-							if (parts[i].EndsWith('"'))
-							{
-								parts[i] = parts[i].TrimEnd('"');
-								yield return string.Join(" ", parts[start..(i + 1)]);
-								break;
-							}
-						}
-					}
-					else
-					{
-						yield return parts[i];
-					}
-				}
 			}
 
 			internal void Reset()
