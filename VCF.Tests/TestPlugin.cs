@@ -17,7 +17,7 @@ public class HorseCommands
 	{
 		Console.WriteLine("I don't mean to stare, we don't have to breed.");
 	}
-
+	
 	[ChatCommand("call")]
 	public void Call(ICommandContext ctx, NamedHorse? target = null)
 	{

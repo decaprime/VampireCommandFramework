@@ -1,8 +1,5 @@
 ﻿using BepInEx;
 using BepInEx.IL2CPP;
-using HarmonyLib;
-using System;
-using Unity.Entities;
 using VampireCommandFramework;
 
 namespace VCF.SimpleSamplePlugin

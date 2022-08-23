@@ -10,15 +10,18 @@ namespace VampireCommandFramework
 	// TODO: replace with 
 	public static class Log
 	{
-		public static void Warning(string s) => Write("warning", s);
-		public static void Error(string s) => Write("error", s);
-		public static void Debug(string s) => Write("debug", s);
+		internal static ManualLogSource Instance { get; set; }
 
-		private static void Write(string prefix, string content) => Console.WriteLine($"[{prefix}] {content}");
+		public static void Warning(string s) => Instance?.LogWarning(s);
+		public static void Error(string s) => Instance?.LogError(s);
+		public static void Debug(string s) => Instance.LogDebug(s);
 	}
 
 	public static class CommandRegistry
 	{
+		private const string DEFAULT_PREFIX = ".";
+		private static CommandCache _cache = new();
+		private static Dictionary<Type, (object instance, MethodInfo tryParse)> _converters = new();
 
 		// also todo: maybe bad code to rewrite, look later
 		internal static IEnumerable<string> GetParts(string input)
@@ -45,7 +48,13 @@ namespace VampireCommandFramework
 				}
 			}
 		}
-		
+		internal static void Reset()
+		{
+			// testability and a bunch of static crap, I know...
+			Middlewares.Clear(); _converters.Clear();
+			_cache = new();
+		}
+
 		private class CommandCache
 		{
 			private static Dictionary<Type, HashSet<(string, int)>> _commandAssemblyMap = new();
@@ -125,23 +134,9 @@ namespace VampireCommandFramework
 			}
 		}
 
-		private static CommandCache _cache = new();
-
 		public record ChatCommand(ChatCommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters);
-		private static Dictionary<Type, (object instance, MethodInfo tryParse)> _converters = new();
-
-
-		private const string DEFAULT_PREFIX = ".";
 
 		public static List<CommandMiddleware> Middlewares { get; } = new();
-
-		public static void Reset()
-		{
-			// testability and a bunch of static crap, I know...
-			Middlewares.Clear(); _converters.Clear();
-			_cache = new();
-		}
-
 
 		public static ChatCommand Handle(ICommandContext ctx, string input)
 		{
@@ -224,7 +219,6 @@ namespace VampireCommandFramework
 				else
 				{
 					// default convertet
-
 					var builtinConverter = TypeDescriptor.GetConverter(param.ParameterType);
 					try
 					{
@@ -304,13 +298,12 @@ namespace VampireCommandFramework
 
 			foreach (var method in methods)
 			{
-				TryRegisterMethod(assembly, assemblyPrefix, groupAttr, contextConstructor, method);
+				RegisterMethod(assembly, assemblyPrefix, groupAttr, contextConstructor, method);
 			}
 		}
 
-		private static void TryRegisterMethod(Assembly assembly, string assemblyPrefix, ChatCommandGroupAttribute groupAttr, ConstructorInfo contextConstructor, MethodInfo method)
+		private static void RegisterMethod(Assembly assembly, string assemblyPrefix, ChatCommandGroupAttribute groupAttr, ConstructorInfo contextConstructor, MethodInfo method)
 		{
-			// TODO: multiple attributes check
 			var commandAttr = method.GetCustomAttribute<ChatCommandAttribute>();
 			if (commandAttr == null) return;
 			
@@ -347,7 +340,7 @@ namespace VampireCommandFramework
 
 			var command = new ChatCommand(commandAttr, method, contextConstructor, parameters);
 
-			// todo include prefix and group in here, this shoudl be a  string match
+			// todo include prefix and group in here, this shoudl be a string match
 			// todo handle collisons here
 
 			// BAD CODE INC.. permute and cache keys -> command

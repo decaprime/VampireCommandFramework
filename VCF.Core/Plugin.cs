@@ -4,18 +4,32 @@ using HarmonyLib;
 using System;
 using Unity.Entities;
 using VampireCommandFramework;
+using ProjectM;
+using Engine.Console;
+using Wetstone.API;
 
 namespace VampireCommandFramework
 {
-	[BepInPlugin("gg.deca.VampireCommandFramework", "Vampire Command Framework", "1.0.0.0")]
+	[BepInPlugin(PLUGIN_ID, "Vampire Command Framework", "0.2.2")]
 	[BepInDependency("xyz.molenzwiebel.wetstone")]
 	[Wetstone.API.Reloadable]
 	internal class Plugin : BasePlugin
 	{
+		const string PLUGIN_ID = "gg.deca.VampireCommandFramework";
+
+		private Harmony _harmony;
+
 		public override void Load()
 		{
+			VampireCommandFramework.Log.Instance = Log;
+			// Plugin startup logic
+			_harmony = new Harmony(PLUGIN_ID);
+			_harmony.PatchAll();
+			
 			Wetstone.Hooks.Chat.OnChatMessage += Chat_OnChatMessage;
-			// load some config file to let end users override things without recompiling plugins
+
+			IL2CPPChainloader.Instance.Plugins.TryGetValue(PLUGIN_ID, out var info);
+			Log.LogMessage($"VCF Loaded: {info?.Metadata.Version}");
 		}
 
 		private void Chat_OnChatMessage(Wetstone.Hooks.VChatEvent e)
@@ -26,6 +40,7 @@ namespace VampireCommandFramework
 
 		public override bool Unload()
 		{
+			_harmony.UnpatchSelf();
 			Wetstone.Hooks.Chat.OnChatMessage -= Chat_OnChatMessage;
 			return true;
 		}
