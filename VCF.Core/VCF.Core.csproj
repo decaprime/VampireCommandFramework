@@ -8,7 +8,7 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<NuspecFile>../nuget.nuspec</NuspecFile>
-		<NuspecProperties>version=$(PackageVersion)</NuspecProperties>
+		<NuspecProperties>version=$(Version)</NuspecProperties>
 	</PropertyGroup>
 	
 	<ItemGroup>
