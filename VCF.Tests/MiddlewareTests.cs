@@ -11,6 +11,7 @@ namespace VCF.Tests
 		[SetUp]
 		public void Setup()
 		{
+			Log.Instance = new BepInEx.Logging.ManualLogSource("Test");
 			CommandRegistry.Reset();
 			CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
 			CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);
