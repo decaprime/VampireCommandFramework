@@ -1,6 +1,7 @@
 ﻿using BepInEx;
 using BepInEx.IL2CPP;
 using VampireCommandFramework;
+using PluginInfo = VCF.SimpleSamplePlugin.MyPluginInfo;
 
 namespace VCF.SimpleSamplePlugin
 {

@@ -18,7 +18,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="BepInEx.IL2CPP" Version="6.0.0-*" IncludeAssets="compile" />
-		<PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
+		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
 		<PackageReference Include="Wetstone" Version="1.1.0" />
 	</ItemGroup>
 

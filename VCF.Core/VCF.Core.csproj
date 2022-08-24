@@ -9,6 +9,10 @@
 		<LangVersion>latest</LangVersion>
 		<NuspecFile>../nuget.nuspec</NuspecFile>
 		<NuspecProperties>version=$(Version)</NuspecProperties>
+		<BepInExPluginGuid>gg.deca.VampireCommandFramework</BepInExPluginGuid>
+		<PackageId>VampireCommandFramework</PackageId>
+		<RootNamespace>VampireCommandFramework</RootNamespace>
+		<Authors>deca</Authors>
 	</PropertyGroup>
 	
 	<ItemGroup>
