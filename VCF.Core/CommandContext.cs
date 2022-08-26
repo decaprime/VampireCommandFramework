@@ -5,16 +5,35 @@ using Wetstone.Hooks;
 
 namespace VampireCommandFramework;
 
-internal class CommandContext : ICommandContext
+/// <summary>
+/// This context is built around the in game chat event.
+/// If you want your commands to be reusable you should define them againts <see cref="ICommandContext"/>
+/// </summary>
+/// <remarks>
+/// You would use this context primarily when you need to access the character or chat event directly.
+/// </remarks>
+/// <example>
+/// public class MyCommands
+/// {
+///		[ChatCommand(".close"]
+///		public void WhosClose(CommandContext ctx)
+///		{
+///			var characterEntity =  ctx.Event.SenderCharacterEntity
+///			var (distance, name) = GetClosestTeammate(characterEntity);
+///			ctx.Reply($"{name} is {distance} away")
+///		}
+/// }
+/// </example>
+public class CommandContext : ICommandContext
 {
-	protected VChatEvent Event { get; }
+	public VChatEvent Event { get; }
 
 	public CommandContext(VChatEvent e)
 	{
 		Event = e;
 	}
 
-	protected User User => Event?.User;
+	public User User => Event?.User;
 
 	public IServiceProvider Services { get; }
 
