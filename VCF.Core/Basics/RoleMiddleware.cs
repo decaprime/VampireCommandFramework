@@ -13,9 +13,9 @@ namespace VCF.Core.Basics
     {
         public override bool CanExecute(ICommandContext ctx, ChatCommandAttribute command, MethodInfo method)
         {
-            if (ctx.User.IsAdmin) return true;
+            if (ctx.IsAdmin) return true;
             var storage = ctx.Services.GetService<RoleRepository>();
-            return storage.CanUserExecuteCommand(ctx.User.CharacterName.ToString(), command.Id); // TODO: Better ID for user
+            return storage.CanUserExecuteCommand(ctx.Name, command.Id); // TODO: Better ID for user
         }
     }
 

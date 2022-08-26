@@ -7,16 +7,20 @@ namespace VampireCommandFramework
 {
 	public class CommandContext : ICommandContext
 	{
-		public VChatEvent Event { get; }
+		protected VChatEvent Event { get; }
 
 		public CommandContext(VChatEvent e)
 		{
 			Event = e;
 		}
 
-		public User User => Event?.User;
+		protected User User => Event?.User;
 
 		public IServiceProvider Services { get; }
+
+		public string Name => User?.CharacterName.ToString();
+
+		public bool IsAdmin => User?.IsAdmin ?? false;
 
 		public void Reply(string v)
 		{

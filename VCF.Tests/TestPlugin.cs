@@ -12,12 +12,18 @@ public class HorseCommands
 		ClosestHorse = HorseUtility.FindClosestHorse(ctx);
 	}
 
+	[ChatCommand("adminonly", adminOnly: true)]
+	public void AdminCommand(ICommandContext ctx)
+	{
+		Console.WriteLine("You must be an admin");
+	}
+
 	[ChatCommand("breed")]
 	public void Breed(ICommandContext ctx)
 	{
 		Console.WriteLine("I don't mean to stare, we don't have to breed.");
 	}
-	
+
 	[ChatCommand("call")]
 	public void Call(ICommandContext ctx, NamedHorse? target = null)
 	{

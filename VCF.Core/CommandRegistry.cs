@@ -17,6 +17,12 @@ namespace VampireCommandFramework
 		public static void Debug(string s) => Instance.LogDebug(s);
 	}
 
+
+	public class BasicAdminCheck : CommandMiddleware
+	{
+		public override bool CanExecute(ICommandContext ctx, ChatCommandAttribute cmd, MethodInfo m) => !cmd.AdminOnly || ctx.IsAdmin;
+	}
+
 	public static class CommandRegistry
 	{
 		private const string DEFAULT_PREFIX = ".";
@@ -48,10 +54,13 @@ namespace VampireCommandFramework
 				}
 			}
 		}
+
 		internal static void Reset()
 		{
 			// testability and a bunch of static crap, I know...
-			Middlewares.Clear(); _converters.Clear();
+			Middlewares.Clear();
+			Middlewares.AddRange(DEFAULT_MIDDLEWARES);
+			_converters.Clear();
 			_cache = new();
 		}
 
@@ -90,7 +99,7 @@ namespace VampireCommandFramework
 			public (ChatCommand command, string[] args) GetCommand(string rawInput)
 			{
 				// todo: I think allows for overlap between .foo "bar" and .foo bar <no parameters>
-				foreach(var (key,argCounts) in _newCache)
+				foreach (var (key, argCounts) in _newCache)
 				{
 					if (rawInput.StartsWith(key))
 					{
@@ -102,7 +111,7 @@ namespace VampireCommandFramework
 						}
 					}
 				}
-				
+
 				return (null, null);
 			}
 
@@ -136,7 +145,9 @@ namespace VampireCommandFramework
 
 		public record ChatCommand(ChatCommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters);
 
-		public static List<CommandMiddleware> Middlewares { get; } = new();
+		// todo: document this default behavior, it's just not something to ship without but you can Middlewares.Claer();
+		private static List<CommandMiddleware> DEFAULT_MIDDLEWARES = new() { new BasicAdminCheck() };
+		public static List<CommandMiddleware> Middlewares { get; } = new() { new BasicAdminCheck() };
 
 		public static ChatCommand Handle(ICommandContext ctx, string input)
 		{
@@ -167,7 +178,7 @@ namespace VampireCommandFramework
 			var (command, args) = _cache.GetCommand(input);
 
 			if (command == null) return null; // NOT FOUND;
-	
+
 			var argCount = args.Length;
 			var paramsCount = command.Parameters.Length;
 			var commandArgs = new object[paramsCount + 1];
@@ -203,7 +214,7 @@ namespace VampireCommandFramework
 						result = convertMethod.Invoke(converter, tryParseArgs);
 						commandArgs[i + 1] = result;
 					}
-					catch(TargetInvocationException tie) when (tie.InnerException is ChatCommandException e)
+					catch (TargetInvocationException tie) when (tie.InnerException is ChatCommandException e)
 					{
 						// todo: error matched type but failed to convert arg to type
 						Log.Debug($"Hit ChatCommandException: {e.Message}");
@@ -248,6 +259,8 @@ namespace VampireCommandFramework
 
 		public static void RegisterConverter(Type converter)
 		{
+			// TODO: need to explicitly fail here, wtf you asking me to do if you aren't a converter
+
 			// check base type
 			if (converter.BaseType.Name != typeof(ChatCommandArgumentConverter<>).Name)
 			{
@@ -306,7 +319,7 @@ namespace VampireCommandFramework
 		{
 			var commandAttr = method.GetCustomAttribute<ChatCommandAttribute>();
 			if (commandAttr == null) return;
-			
+
 			// check for CommandContext as first argument to method
 			var paramInfos = method.GetParameters();
 			var first = paramInfos.FirstOrDefault();
@@ -315,7 +328,7 @@ namespace VampireCommandFramework
 				Log.Error($"Method {method.Name} has no CommandContext as first argument");
 				return;
 			}
-			var parameters =  paramInfos.Skip(1).ToArray();
+			var parameters = paramInfos.Skip(1).ToArray();
 
 			var canConvert = parameters.All(param =>
 			{
