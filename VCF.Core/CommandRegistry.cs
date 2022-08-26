@@ -1,5 +1,4 @@
-﻿using BepInEx.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -7,22 +6,6 @@ using System.Reflection;
 
 namespace VampireCommandFramework
 {
-	// TODO: replace with 
-	public static class Log
-	{
-		internal static ManualLogSource Instance { get; set; }
-
-		public static void Warning(string s) => Instance?.LogWarning(s);
-		public static void Error(string s) => Instance?.LogError(s);
-		public static void Debug(string s) => Instance.LogDebug(s);
-	}
-
-
-	public class BasicAdminCheck : CommandMiddleware
-	{
-		public override bool CanExecute(ICommandContext ctx, ChatCommandAttribute cmd, MethodInfo m) => !cmd.AdminOnly || ctx.IsAdmin;
-	}
-
 	public static class CommandRegistry
 	{
 		private const string DEFAULT_PREFIX = ".";
@@ -146,8 +129,8 @@ namespace VampireCommandFramework
 		public record ChatCommand(ChatCommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters);
 
 		// todo: document this default behavior, it's just not something to ship without but you can Middlewares.Claer();
-		private static List<CommandMiddleware> DEFAULT_MIDDLEWARES = new() { new BasicAdminCheck() };
-		public static List<CommandMiddleware> Middlewares { get; } = new() { new BasicAdminCheck() };
+		private static List<CommandMiddleware> DEFAULT_MIDDLEWARES = new() { new VCF.Core.Basics.BasicAdminCheck() };
+		public static List<CommandMiddleware> Middlewares { get; } = new() { new VCF.Core.Basics.BasicAdminCheck() };
 
 		public static ChatCommand Handle(ICommandContext ctx, string input)
 		{
