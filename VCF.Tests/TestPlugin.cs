@@ -59,7 +59,7 @@ public class NamedHorseConverter : ChatCommandArgumentConverter<NamedHorse?>
 	public override NamedHorse? Parse(ICommandContext ctx, string input)
 	{
 		/* check some cache or perform entity query, null here to not pull in more */
-		return (input == "Ted") ? null : throw ctx.Error("Only T");
+		return (input == "Ted") ? null : throw ctx.Error("Only Ted");
 	}
 }
 

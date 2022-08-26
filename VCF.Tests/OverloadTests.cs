@@ -1,60 +1,52 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Moq;
-using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using NUnit.Framework;
 using VampireCommandFramework;
 
-namespace VCF.Tests
+namespace VCF.Tests;
+
+public class OverloadTests
 {
-	public class OverloadTests
+	internal static bool IsFirstCalled = false;
+	internal static bool IsSecondCalled = false;
+	
+	public class OverloadTestCommands
 	{
-		internal static bool IsFirstCalled = false;
-		internal static bool IsSecondCalled = false;
-		
-		public class OverloadTestCommands
+		[ChatCommand("overload")]
+		public void Overload(CommandContext ctx)
 		{
-			[ChatCommand("overload")]
-			public void Overload(CommandContext ctx)
-			{
-				IsFirstCalled = true;
-			}
-
-			[ChatCommand("overload")]
-			public void Overload(CommandContext ctx, string arg)
-			{
-				IsSecondCalled = true;
-			}
+			IsFirstCalled = true;
 		}
 
-		[SetUp]
-		public void Setup()
+		[ChatCommand("overload")]
+		public void Overload(CommandContext ctx, string arg)
 		{
-			CommandRegistry.Reset();
-			IsFirstCalled = false;
-			IsSecondCalled = false;
+			IsSecondCalled = true;
 		}
+	}
+
+	[SetUp]
+	public void Setup()
+	{
+		CommandRegistry.Reset();
+		IsFirstCalled = false;
+		IsSecondCalled = false;
+	}
 
 
-		[Test]
-		public void CanOverload_CallFirstCommand()
-		{
-			CommandRegistry.RegisterCommandType(typeof(OverloadTestCommands));
-			CommandRegistry.Handle(null, ".overload");
-			Assert.IsTrue(IsFirstCalled);
-			Assert.IsFalse(IsSecondCalled);
-		}
-		
-		[Test]
-		public void CanOverload_CallSecondCommand()
-		{
-			CommandRegistry.RegisterCommandType(typeof(OverloadTestCommands));
-			CommandRegistry.Handle(null, ".overload test");
-			Assert.IsFalse(IsFirstCalled);
-			Assert.IsTrue(IsSecondCalled);
-		}
+	[Test]
+	public void CanOverload_CallFirstCommand()
+	{
+		CommandRegistry.RegisterCommandType(typeof(OverloadTestCommands));
+		CommandRegistry.Handle(null, ".overload");
+		Assert.IsTrue(IsFirstCalled);
+		Assert.IsFalse(IsSecondCalled);
+	}
+	
+	[Test]
+	public void CanOverload_CallSecondCommand()
+	{
+		CommandRegistry.RegisterCommandType(typeof(OverloadTestCommands));
+		CommandRegistry.Handle(null, ".overload test");
+		Assert.IsFalse(IsFirstCalled);
+		Assert.IsTrue(IsSecondCalled);
 	}
 }
