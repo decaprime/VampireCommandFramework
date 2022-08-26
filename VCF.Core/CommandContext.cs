@@ -24,11 +24,11 @@ namespace VampireCommandFramework;
 ///		}
 /// }
 /// </example>
-public class CommandContext : ICommandContext
+public class ChatCommandContext : ICommandContext
 {
 	public VChatEvent Event { get; }
 
-	public CommandContext(VChatEvent e)
+	public ChatCommandContext(VChatEvent e)
 	{
 		Event = e;
 	}

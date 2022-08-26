@@ -26,7 +26,7 @@ internal class Plugin : BasePlugin
 
 	private void Chat_OnChatMessage(Wetstone.Hooks.VChatEvent e)
 	{
-		var ctx = new CommandContext(e);
+		var ctx = new ChatCommandContext(e);
 		CommandRegistry.Handle(ctx, e.Message);
 	}
 
