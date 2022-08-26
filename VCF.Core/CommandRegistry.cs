@@ -243,8 +243,12 @@ namespace VampireCommandFramework
 				}
 			}
 
-			// construct command class with context if declared
-			var instance = command.Constructor == null ? Activator.CreateInstance(command.Method.DeclaringType) : command.Constructor.Invoke(new[] { ctx });
+			object instance = null;
+			// construct command's type with context if declared only in a non-static class and on a non-static method
+			if (!command.Method.IsStatic && !(command.Method.DeclaringType.IsAbstract && command.Method.DeclaringType.IsSealed))
+			{
+				instance = command.Constructor == null ? Activator.CreateInstance(command.Method.DeclaringType) : command.Constructor.Invoke(new[] { ctx });
+			}
 
 			if (!HandleCanExecute(ctx, command)) return null; // todo: need better return type
 			HandleBeforeExecute(ctx, command);
