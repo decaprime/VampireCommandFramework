@@ -5,7 +5,7 @@ using Wetstone.Hooks;
 
 namespace VampireCommandFramework;
 
-public class CommandContext : ICommandContext
+internal class CommandContext : ICommandContext
 {
 	protected VChatEvent Event { get; }
 

@@ -126,7 +126,7 @@ public static class CommandRegistry
 		}
 	}
 
-	public record ChatCommand(ChatCommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters);
+	public record ChatCommand(ChatCommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters, Type ContextType);
 
 	// todo: document this default behavior, it's just not something to ship without but you can Middlewares.Claer();
 	private static List<CommandMiddleware> DEFAULT_MIDDLEWARES = new() { new VCF.Core.Basics.BasicAdminCheck() };
@@ -160,7 +160,14 @@ public static class CommandRegistry
 
 		var (command, args) = _cache.GetCommand(input);
 
-		if (command == null) return null; // NOT FOUND;
+		if (command == null) return null; // NOT FOUND
+
+		// Handle Context Type assignment
+		if (!command.ContextType.IsAssignableFrom(ctx?.GetType()))
+		{
+			Log.Warning($"Matched {command.Attribute.Id} but can not assign {command.ContextType.Name} from {ctx?.GetType().Name}");
+			return null;
+		}
 
 		var argCount = args.Length;
 		var paramsCount = command.Parameters.Length;
@@ -302,7 +309,7 @@ public static class CommandRegistry
 		}
 	}
 
-	private static void RegisterMethod(Assembly assembly, string assemblyPrefix, ChatCommandGroupAttribute groupAttr, ConstructorInfo contextConstructor, MethodInfo method)
+	private static void RegisterMethod(Assembly assembly, string assemblyPrefix, ChatCommandGroupAttribute groupAttr, ConstructorInfo customConstructor, MethodInfo method)
 	{
 		var commandAttr = method.GetCustomAttribute<ChatCommandAttribute>();
 		if (commandAttr == null) return;
@@ -315,6 +322,7 @@ public static class CommandRegistry
 			Log.Error($"Method {method.Name} has no CommandContext as first argument");
 			return;
 		}
+
 		var parameters = paramInfos.Skip(1).ToArray();
 
 		var canConvert = parameters.All(param =>
@@ -338,7 +346,7 @@ public static class CommandRegistry
 
 		if (!canConvert) return;
 
-		var command = new ChatCommand(commandAttr, method, contextConstructor, parameters);
+		var command = new ChatCommand(commandAttr, method, customConstructor, parameters, first.ParameterType);
 
 		// todo include prefix and group in here, this shoudl be a string match
 		// todo handle collisons here

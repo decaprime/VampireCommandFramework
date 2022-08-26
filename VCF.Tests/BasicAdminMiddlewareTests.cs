@@ -10,7 +10,6 @@ public class BasicAdminMiddlewareTests
 	[SetUp]
 	public void Setup()
 	{
-		Log.Instance = new BepInEx.Logging.ManualLogSource("Test");
 		CommandRegistry.Reset();
 		CommandRegistry.RegisterCommandType(typeof(TestCommands));
 		UsersCtx = A.Fake<ICommandContext>();

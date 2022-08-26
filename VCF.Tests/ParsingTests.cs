@@ -13,6 +13,8 @@ public class ParsingTests
 		CommandRegistry.Reset();
 	}
 
+	private readonly ICommandContext AnyCtx = A.Fake<ICommandContext>();
+
 	[Test]
 	public void CanRegisterConverter()
 	{
@@ -32,7 +34,7 @@ public class ParsingTests
 	public void CanCallParameterless()
 	{
 		CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);
-		Assert.IsNotNull(CommandRegistry.Handle(null, ".horse breed"));
+		Assert.IsNotNull(CommandRegistry.Handle(AnyCtx, ".horse breed"));
 		Assert.Pass();
 	}
 
@@ -40,14 +42,14 @@ public class ParsingTests
 	public void CanConvertPrimitive()
 	{
 		CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);
-		Assert.IsNotNull(CommandRegistry.Handle(null, ".horse set speed 12.2"));
+		Assert.IsNotNull(CommandRegistry.Handle(AnyCtx, ".horse set speed 12.2"));
 	}
 
 	[Test]
 	public void CanCallWithGroupShorthand()
 	{
 		CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);
-		Assert.IsNotNull(CommandRegistry.Handle(null, ".h set speed 12.2"));
+		Assert.IsNotNull(CommandRegistry.Handle(AnyCtx, ".h set speed 12.2"));
 	}
 
 	[Test]
@@ -55,7 +57,7 @@ public class ParsingTests
 	{
 		CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
 		CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);
-		Assert.IsNotNull(CommandRegistry.Handle(null, ".horse call"));
+		Assert.IsNotNull(CommandRegistry.Handle(AnyCtx, ".horse call"));
 	}
 
 	[Test]
@@ -63,7 +65,7 @@ public class ParsingTests
 	{
 		CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
 		CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);
-		Assert.IsNotNull(CommandRegistry.Handle(null, ".horse call 123 41234"));
+		Assert.IsNotNull(CommandRegistry.Handle(AnyCtx, ".horse call 123 41234"));
 	}
 
 	[Test]
@@ -83,8 +85,8 @@ public class ParsingTests
 	public void CanCallWithEnum()
 	{
 		CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);
-		Assert.IsNotNull(CommandRegistry.Handle(null, ".horse color Black"));
-		Assert.IsNotNull(CommandRegistry.Handle(null, ".horse color Brown"));
-		Assert.IsNull(CommandRegistry.Handle(null, ".horse color Purple"));
+		Assert.IsNotNull(CommandRegistry.Handle(AnyCtx, ".horse color Black"));
+		Assert.IsNotNull(CommandRegistry.Handle(AnyCtx, ".horse color Brown"));
+		Assert.IsNull(CommandRegistry.Handle(AnyCtx, ".horse color Purple"));
 	}
 }

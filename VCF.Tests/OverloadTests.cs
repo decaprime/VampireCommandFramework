@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using FakeItEasy;
+using NUnit.Framework;
 using VampireCommandFramework;
 
 namespace VCF.Tests;
@@ -7,17 +8,18 @@ public class OverloadTests
 {
 	internal static bool IsFirstCalled = false;
 	internal static bool IsSecondCalled = false;
-	
+	private readonly ICommandContext AnyCtx = A.Fake<ICommandContext>();
+
 	public class OverloadTestCommands
 	{
 		[ChatCommand("overload")]
-		public void Overload(CommandContext ctx)
+		public void Overload(ICommandContext ctx)
 		{
 			IsFirstCalled = true;
 		}
 
 		[ChatCommand("overload")]
-		public void Overload(CommandContext ctx, string arg)
+		public void Overload(ICommandContext ctx, string arg)
 		{
 			IsSecondCalled = true;
 		}
@@ -36,7 +38,7 @@ public class OverloadTests
 	public void CanOverload_CallFirstCommand()
 	{
 		CommandRegistry.RegisterCommandType(typeof(OverloadTestCommands));
-		CommandRegistry.Handle(null, ".overload");
+		CommandRegistry.Handle(AnyCtx, ".overload");
 		Assert.IsTrue(IsFirstCalled);
 		Assert.IsFalse(IsSecondCalled);
 	}
@@ -45,7 +47,7 @@ public class OverloadTests
 	public void CanOverload_CallSecondCommand()
 	{
 		CommandRegistry.RegisterCommandType(typeof(OverloadTestCommands));
-		CommandRegistry.Handle(null, ".overload test");
+		CommandRegistry.Handle(AnyCtx, ".overload test");
 		Assert.IsFalse(IsFirstCalled);
 		Assert.IsTrue(IsSecondCalled);
 	}

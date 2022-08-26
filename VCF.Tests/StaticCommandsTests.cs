@@ -9,7 +9,6 @@ public class StaticCommandsTests
 	[SetUp]
 	public void Setup()
 	{
-		Log.Instance = new BepInEx.Logging.ManualLogSource("Test");
 		CommandRegistry.Reset();
 	}
 
