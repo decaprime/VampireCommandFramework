@@ -2,17 +2,16 @@
 using System;
 using Wetstone.Hooks;
 
-namespace VampireCommandFramework
+namespace VampireCommandFramework;
+
+public interface ICommandContext
 {
-	public interface ICommandContext
-	{
-		IServiceProvider Services { get; }
-		
-		string Name { get; }
+	IServiceProvider Services { get; }
+	
+	string Name { get; }
 
-		bool IsAdmin { get; }
+	bool IsAdmin { get; }
 
-		ChatCommandException Error(string LogMessage);
-		void Reply(string v);
-	}
+	ChatCommandException Error(string LogMessage);
+	void Reply(string v);
 }
