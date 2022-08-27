@@ -3,8 +3,7 @@ using System;
 
 namespace VampireCommandFramework;
 
-// TODO: replace with 
-public static class Log
+internal static class Log
 {
 	internal static ManualLogSource Instance { get; set; }
 
