@@ -126,7 +126,7 @@ public static class CommandRegistry
 		}
 	}
 
-	public record ChatCommand(ChatCommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters, Type ContextType);
+	public record ChatCommand(ChatCommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters, Type ContextType, Type ConstructorType);
 
 	// todo: document this default behavior, it's just not something to ship without but you can Middlewares.Claer();
 	private static List<CommandMiddleware> DEFAULT_MIDDLEWARES = new() { new VCF.Core.Basics.BasicAdminCheck() };
@@ -162,10 +162,17 @@ public static class CommandRegistry
 
 		if (command == null) return null; // NOT FOUND
 
-		// Handle Context Type assignment
+		// Handle Context Type not matching command
 		if (!command.ContextType.IsAssignableFrom(ctx?.GetType()))
 		{
-			Log.Warning($"Matched {command.Attribute.Id} but can not assign {command.ContextType.Name} from {ctx?.GetType().Name}");
+			Log.Warning($"Matched [{command.Attribute.Id}] but can not assign {command.ContextType.Name} from {ctx?.GetType().Name}");
+			return null;
+		}
+
+		// Then handle this invocation's context not being valid for the command classes custom constructor
+		if (command.Constructor != null && !command.ConstructorType.IsAssignableFrom(ctx?.GetType()))
+		{
+			Log.Warning($"Matched [{command.Attribute.Id}] but can not assign {command.ConstructorType.Name} from {ctx?.GetType().Name}");
 			return null;
 		}
 
@@ -301,7 +308,9 @@ public static class CommandRegistry
 
 		var methods = type.GetMethods();
 
-		var contextConstructor = type.GetConstructor(new[] { typeof(ICommandContext) });
+		ConstructorInfo contextConstructor = type.GetConstructors()
+			.Where(c => typeof(ICommandContext).IsAssignableFrom(c.GetParameters().SingleOrDefault()?.ParameterType))
+			.FirstOrDefault();
 
 		foreach (var method in methods)
 		{
@@ -346,7 +355,9 @@ public static class CommandRegistry
 
 		if (!canConvert) return;
 
-		var command = new ChatCommand(commandAttr, method, customConstructor, parameters, first.ParameterType);
+		var constructorType = customConstructor?.GetParameters().Single().ParameterType;
+
+		var command = new ChatCommand(commandAttr, method, customConstructor, parameters, first.ParameterType, constructorType);
 
 		// todo include prefix and group in here, this shoudl be a string match
 		// todo handle collisons here
