@@ -52,6 +52,11 @@ public class CommandContextTests
 		Assert.IsNotNull(CommandRegistry.Handle(_goodContext, ".Concrete-GoodContextTest"), "Command should be invoked with GoodContext");
 		Assert.IsNull(CommandRegistry.Handle(_badContext, ".Concrete-GoodContextTest"), "Command should not be invoked with wrong context");
 		Assert.IsTrue(ConcreteConstructorCalled);
+
+
+		// TODO: factor into unique test what about admin check
+		_goodContext.IsAdmin = false;
+		Assert.IsNull(CommandRegistry.Handle(_goodContext, ".Concrete-GoodContextTest"), "Command should not be invoked with wrong context");
 	}
 
 	[Test]
@@ -124,17 +129,15 @@ public class CommandContextTests
 
 		public string Name => throw new NotImplementedException();
 
-		public bool IsAdmin => true;
+		public bool IsAdmin { get; set; } = true;
 
 		public ChatCommandException Error(string LogMessage)
 		{
 			throw new NotImplementedException();
 		}
 
-		public void Reply(string v)
-		{
-			throw new NotImplementedException();
-		}
+		public void Reply(string v) => Log.Debug(v);
+		
 	}
 
 	public class BadContext : ICommandContext
@@ -143,17 +146,15 @@ public class CommandContextTests
 
 		public string Name => throw new NotImplementedException();
 
-		public bool IsAdmin => true;
+		public bool IsAdmin { get; set; } = true;
 
 		public ChatCommandException Error(string LogMessage)
 		{
 			throw new NotImplementedException();
 		}
 
-		public void Reply(string v)
-		{
-			throw new NotImplementedException();
-		}
+		public void Reply(string v) => Log.Debug(v);
+
 	}
 
 

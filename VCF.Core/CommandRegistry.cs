@@ -136,8 +136,11 @@ public static class CommandRegistry
 	{
 		static bool HandleCanExecute(ICommandContext ctx, ChatCommand command)
 		{
+			Log.Debug($"Executing {Middlewares.Count} CanHandle Middlwares:");
 			foreach (var middleware in Middlewares)
 			{
+
+				Log.Debug($"\t{middleware.GetType().Name}");
 				if (!middleware.CanExecute(ctx, command.Attribute, command.Method))
 				{
 					return false;
@@ -181,6 +184,7 @@ public static class CommandRegistry
 		var commandArgs = new object[paramsCount + 1];
 		commandArgs[0] = ctx;
 
+		// Handle default values
 		if (argCount != paramsCount)
 		{
 			var canDefault = command.Parameters.Skip(argCount).All(p => p.HasDefaultValue);
@@ -195,6 +199,7 @@ public static class CommandRegistry
 			}
 		}
 
+		// Handle Converting Parameters
 		for (var i = 0; i < argCount; i++)
 		{
 			var param = command.Parameters[i];
@@ -214,13 +219,13 @@ public static class CommandRegistry
 				catch (TargetInvocationException tie) when (tie.InnerException is ChatCommandException e)
 				{
 					// todo: error matched type but failed to convert arg to type
-					Log.Debug($"Hit ChatCommandException: {e.Message}");
+					ctx.Reply($"<color=red>[error]</color> Failed converted parameter: {e.Message}");
 					return null;
 				}
 				catch (Exception e)
 				{
 					// todo: failed custom converter unhandled
-					//return null;
+					Log.Warning($"Hit unexpected exception {e}");
 					throw e;
 				}
 			}
@@ -234,7 +239,7 @@ public static class CommandRegistry
 				}
 				catch (Exception e)
 				{
-					Log.Error($"Can't convert {arg}: {e}");
+					ctx.Reply($"<color=red>[error]</color> Failed converted parameter: {e.Message}");
 					return null;
 				}
 			}
@@ -247,11 +252,30 @@ public static class CommandRegistry
 			instance = command.Constructor == null ? Activator.CreateInstance(command.Method.DeclaringType) : command.Constructor.Invoke(new[] { ctx });
 		}
 
-		if (!HandleCanExecute(ctx, command)) return null; // todo: need better return type
+		// Handle Middlewares
+		if (!HandleCanExecute(ctx, command))
+		{
+			ctx.Reply($"<color=red>[denied]</color> {command.Attribute.Id}");
+			return null; // todo: need better return type
+		}
+
 		HandleBeforeExecute(ctx, command);
 
-		// run command method
-		command.Method.Invoke(instance, commandArgs);
+		// Execute Command
+		try
+		{
+			command.Method.Invoke(instance, commandArgs);
+		}
+		catch (TargetInvocationException tie) when (tie.InnerException is ChatCommandException e)
+		{
+			ctx.Reply($"<color=red>[error]</color> {e.Message}");
+			return null;
+		}
+		catch (Exception e)
+		{
+			Log.Warning($"Hit unexpected exception executing command {command.Attribute.Id}\n: {e}");
+			throw e;
+		}
 
 		HandleAfterExecute(ctx, command);
 
