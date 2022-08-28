@@ -4,7 +4,7 @@
 		<TargetFramework>netstandard2.1</TargetFramework>
 		<AssemblyName>VampireCommandFramework</AssemblyName>
 		<Description>My first plugin</Description>
-		<Version>0.2.1</Version>
+		<Version>0.0.999</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<NuspecFile>../nuget.nuspec</NuspecFile>
