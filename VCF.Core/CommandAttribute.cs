@@ -2,9 +2,9 @@
 
 namespace VampireCommandFramework;
 
-public class ChatCommandAttribute : Attribute
+public class CommandAttribute : Attribute
 {
-	public ChatCommandAttribute(string name, string shortHand = null, string usage = null, string description = null, string id = null, bool adminOnly = false)
+	public CommandAttribute(string name, string shortHand = null, string usage = null, string description = null, string id = null, bool adminOnly = false)
 	{
 		Name = name;
 		ShortHand = shortHand;

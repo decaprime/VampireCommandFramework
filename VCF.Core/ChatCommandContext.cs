@@ -46,8 +46,8 @@ public class ChatCommandContext : ICommandContext
 
 	// todo: expand this, just throw from here as void and build a handler that can message user/log.
 	// note: return exception lets callers throw ctx.Error() and control flow is obvious 
-	public ChatCommandException Error(string LogMessage)
+	public CommandException Error(string LogMessage)
 	{
-		return new ChatCommandException(LogMessage);
+		return new CommandException(LogMessage);
 	}
 }

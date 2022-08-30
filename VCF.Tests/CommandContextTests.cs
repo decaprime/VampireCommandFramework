@@ -93,10 +93,10 @@ public class CommandContextTests
 	{
 		public DefaultConstructorCommands() { DefaultConstructorCalled = true; }
 
-		[ChatCommand("Default-GoodContextTest", adminOnly: true)]
+		[Command("Default-GoodContextTest", adminOnly: true)]
 		public void GoodContextTest(GoodContext ctx) { }
 
-		[ChatCommand("Default-InterfaceContextTest", adminOnly: true)]
+		[Command("Default-InterfaceContextTest", adminOnly: true)]
 		public void InterfaceContextTest(ICommandContext ctx) { }
 	}
 
@@ -104,10 +104,10 @@ public class CommandContextTests
 	{
 		public ConcreteConstructorCommands(GoodContext generic) { ConcreteConstructorCalled = true; }
 
-		[ChatCommand("Concrete-GoodContextTest", adminOnly: true)]
+		[Command("Concrete-GoodContextTest", adminOnly: true)]
 		public void GoodContextTest(GoodContext ctx) { }
 
-		[ChatCommand("Concrete-InterfaceContextTest", adminOnly: true)]
+		[Command("Concrete-InterfaceContextTest", adminOnly: true)]
 		public void InterfaceContextTest(ICommandContext ctx) { }
 	}
 
@@ -115,10 +115,10 @@ public class CommandContextTests
 	{
 		public GenericConstructorCommands(ICommandContext generic) { GenericConstructorCalled = true; }
 
-		[ChatCommand("Generic-GoodContextTest", adminOnly: true)]
+		[Command("Generic-GoodContextTest", adminOnly: true)]
 		public void GoodContextTest(GoodContext ctx) { }
 
-		[ChatCommand("Generic-InterfaceContextTest", adminOnly: true)]
+		[Command("Generic-InterfaceContextTest", adminOnly: true)]
 		public void InterfaceContextTest(ICommandContext ctx) { }
 	}
 
@@ -130,7 +130,7 @@ public class CommandContextTests
 
 		public bool IsAdmin { get; set; } = true;
 
-		public ChatCommandException Error(string LogMessage)
+		public CommandException Error(string LogMessage)
 		{
 			throw new NotImplementedException();
 		}
@@ -147,7 +147,7 @@ public class CommandContextTests
 
 		public bool IsAdmin { get; set; } = true;
 
-		public ChatCommandException Error(string LogMessage)
+		public CommandException Error(string LogMessage)
 		{
 			throw new NotImplementedException();
 		}

@@ -12,13 +12,13 @@ public class OverloadTests
 
 	public class OverloadTestCommands
 	{
-		[ChatCommand("overload")]
+		[Command("overload")]
 		public void Overload(ICommandContext ctx)
 		{
 			IsFirstCalled = true;
 		}
 
-		[ChatCommand("overload")]
+		[Command("overload")]
 		public void Overload(ICommandContext ctx, string arg)
 		{
 			IsSecondCalled = true;

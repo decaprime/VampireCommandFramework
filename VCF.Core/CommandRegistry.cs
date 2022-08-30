@@ -126,7 +126,7 @@ public static class CommandRegistry
 		}
 	}
 
-	internal record ChatCommand(ChatCommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters, Type ContextType, Type ConstructorType);
+	internal record ChatCommand(CommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters, Type ContextType, Type ConstructorType);
 
 	// todo: document this default behavior, it's just not something to ship without but you can Middlewares.Claer();
 	private static List<CommandMiddleware> DEFAULT_MIDDLEWARES = new() { new VCF.Core.Basics.BasicAdminCheck() };
@@ -216,7 +216,7 @@ public static class CommandRegistry
 					result = convertMethod.Invoke(converter, tryParseArgs);
 					commandArgs[i + 1] = result;
 				}
-				catch (TargetInvocationException tie) when (tie.InnerException is ChatCommandException e)
+				catch (TargetInvocationException tie) when (tie.InnerException is CommandException e)
 				{
 					// todo: error matched type but failed to convert arg to type
 					ctx.Reply($"<color=red>[error]</color> Failed converted parameter: {e.Message}");
@@ -266,7 +266,7 @@ public static class CommandRegistry
 		{
 			command.Method.Invoke(instance, commandArgs);
 		}
-		catch (TargetInvocationException tie) when (tie.InnerException is ChatCommandException e)
+		catch (TargetInvocationException tie) when (tie.InnerException is CommandException e)
 		{
 			ctx.Reply($"<color=red>[error]</color> {e.Message}");
 			return CommandResult.CommandError;
@@ -287,7 +287,7 @@ public static class CommandRegistry
 		// TODO: need to explicitly fail here, wtf you asking me to do if you aren't a converter
 
 		// check base type
-		if (converter.BaseType.Name != typeof(ChatCommandArgumentConverter<>).Name)
+		if (converter.BaseType.Name != typeof(CommandArgumentConverter<>).Name)
 		{
 			// can't bud
 			Log.Error("wrong type");
@@ -323,7 +323,7 @@ public static class CommandRegistry
 
 	public static void RegisterCommandType(Type type, string assemblyPrefix = null)
 	{
-		var groupAttr = type.GetCustomAttribute<ChatCommandGroupAttribute>();
+		var groupAttr = type.GetCustomAttribute<CommandGroupAttribute>();
 		var assembly = type.Assembly;
 		if (groupAttr != null)
 		{
@@ -342,9 +342,9 @@ public static class CommandRegistry
 		}
 	}
 
-	private static void RegisterMethod(Assembly assembly, string assemblyPrefix, ChatCommandGroupAttribute groupAttr, ConstructorInfo customConstructor, MethodInfo method)
+	private static void RegisterMethod(Assembly assembly, string assemblyPrefix, CommandGroupAttribute groupAttr, ConstructorInfo customConstructor, MethodInfo method)
 	{
-		var commandAttr = method.GetCustomAttribute<ChatCommandAttribute>();
+		var commandAttr = method.GetCustomAttribute<CommandAttribute>();
 		if (commandAttr == null) return;
 
 		// check for CommandContext as first argument to method

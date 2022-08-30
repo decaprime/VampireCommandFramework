@@ -72,7 +72,7 @@ public class ParsingTests
 	public void CanCallWithConverter()
 	{
 		var ctx = A.Fake<ICommandContext>();
-		A.CallTo(() => ctx.Error(A<string>._)).Returns(new ChatCommandException());
+		A.CallTo(() => ctx.Error(A<string>._)).Returns(new CommandException());
 
 		CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
 		CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);

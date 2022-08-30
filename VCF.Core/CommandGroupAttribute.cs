@@ -2,9 +2,9 @@
 
 namespace VampireCommandFramework;
 
-public class ChatCommandGroupAttribute : Attribute
+public class CommandGroupAttribute : Attribute
 {
-	public ChatCommandGroupAttribute(string name, string shortHand = null, string prefix = null)
+	public CommandGroupAttribute(string name, string shortHand = null, string prefix = null)
 	{
 		Name = name;
 		ShortHand = shortHand;

@@ -11,6 +11,6 @@ public interface ICommandContext
 
 	bool IsAdmin { get; }
 
-	ChatCommandException Error(string LogMessage);
+	CommandException Error(string LogMessage);
 	void Reply(string v);
 }

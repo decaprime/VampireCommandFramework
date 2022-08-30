@@ -36,13 +36,13 @@ public class BasicAdminMiddlewareTests
 
 	public class TestCommands
 	{
-		[ChatCommand("adminonly", adminOnly: true)]
+		[Command("adminonly", adminOnly: true)]
 		public void AdminOnly(ICommandContext ctx) { }
 
-		[ChatCommand("allusers", adminOnly: false)]
+		[Command("allusers", adminOnly: false)]
 		public void AlLUsers(ICommandContext ctx) { }
 
-		[ChatCommand("default")]
+		[Command("default")]
 		public void DefaultCommand(ICommandContext ctx) { }
 	}
 }

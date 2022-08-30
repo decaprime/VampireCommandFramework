@@ -25,7 +25,7 @@ namespace VCF.SimpleSamplePlugin
 
 	public class SimplePluginCommands
 	{
-		[ChatCommand("ping")]
+		[Command("ping")]
 		public void Ping(ICommandContext ctx, int num =5) => ctx.Reply($"pong Counter={Plugin.Counter+=num}");
 	}
 }

@@ -28,7 +28,7 @@ public class StaticCommandsTests
 
 	public static class StaticClassTestCommands
 	{
-		[ChatCommand("test")]
+		[Command("test")]
 		public static void Test(ICommandContext ctx) { }
 	}
 
@@ -39,7 +39,7 @@ public class StaticCommandsTests
 			Assert.Fail("Should not run this.");
 		}
 
-		[ChatCommand("test")]
+		[Command("test")]
 		public static void Test(ICommandContext ctx) { }
 	}
 }

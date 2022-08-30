@@ -24,15 +24,15 @@ public class MiddlewareTests
 	{
 		var middleware = A.Fake<CommandMiddleware>();
 
-		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).Returns(true);
+		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).Returns(true);
 
 		CommandRegistry.Middlewares.Add(middleware);
 		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"), Is.EqualTo(CommandResult.Success));
 
 
-		A.CallTo(() => middleware.BeforeExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
-		A.CallTo(() => middleware.AfterExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
-		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
+		A.CallTo(() => middleware.BeforeExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
+		A.CallTo(() => middleware.AfterExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
+		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
 		Assert.That(Fake.GetCalls(middleware).Count(), Is.EqualTo(3), "No other calls were expected");
 	}
 
@@ -41,15 +41,15 @@ public class MiddlewareTests
 	{
 		var middleware = A.Fake<CommandMiddleware>();
 
-		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).Returns(false);
+		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).Returns(false);
 
 		CommandRegistry.Middlewares.Add(middleware);
 		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"), Is.EqualTo(CommandResult.Denied));
 
 
-		A.CallTo(() => middleware.BeforeExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
-		A.CallTo(() => middleware.AfterExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
-		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
+		A.CallTo(() => middleware.BeforeExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
+		A.CallTo(() => middleware.AfterExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
+		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
 		Assert.That(Fake.GetCalls(middleware).Count(), Is.EqualTo(1), "No other calls were expected");
 	}
 
@@ -58,8 +58,8 @@ public class MiddlewareTests
 	{
 		var middleware = A.Fake<CommandMiddleware>();
 
-		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).Returns(true);
-		A.CallTo(() => middleware.BeforeExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).Throws(new Exception());
+		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).Returns(true);
+		A.CallTo(() => middleware.BeforeExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).Throws(new Exception());
 	}
 
 	[Test]
@@ -69,8 +69,8 @@ public class MiddlewareTests
 		var middleware2 = A.Fake<CommandMiddleware>();
 		var middleware3 = A.Fake<CommandMiddleware>();
 
-		A.CallTo(() => middleware2.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).Returns(false);
-		A.CallTo(() => middleware1.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).Returns(true);
+		A.CallTo(() => middleware2.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).Returns(false);
+		A.CallTo(() => middleware1.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).Returns(true);
 
 		CommandRegistry.Middlewares.Add(middleware1);
 		CommandRegistry.Middlewares.Add(middleware2);
@@ -78,14 +78,14 @@ public class MiddlewareTests
 
 		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"), Is.EqualTo(CommandResult.Denied));
 
-		A.CallTo(() => middleware1.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
-		A.CallTo(() => middleware2.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
-		A.CallTo(() => middleware3.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
+		A.CallTo(() => middleware1.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
+		A.CallTo(() => middleware2.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
+		A.CallTo(() => middleware3.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
 
 		foreach (var mock in new[] { middleware1, middleware2, middleware3 })
 		{
-			A.CallTo(() => mock.BeforeExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
-			A.CallTo(() => mock.AfterExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
+			A.CallTo(() => mock.BeforeExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
+			A.CallTo(() => mock.AfterExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
 		}
 	}
 }
