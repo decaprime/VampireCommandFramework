@@ -2,7 +2,8 @@
 
 namespace VampireCommandFramework;
 
-public class CommandGroupAttribute : Attribute
+[AttributeUsage(AttributeTargets.Class)]
+public sealed class CommandGroupAttribute : Attribute
 {
 	public CommandGroupAttribute(string name, string shortHand = null, string prefix = null)
 	{
