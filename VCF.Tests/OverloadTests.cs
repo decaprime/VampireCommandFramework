@@ -42,7 +42,7 @@ public class OverloadTests
 		Assert.IsTrue(IsFirstCalled);
 		Assert.IsFalse(IsSecondCalled);
 	}
-	
+
 	[Test]
 	public void CanOverload_CallSecondCommand()
 	{

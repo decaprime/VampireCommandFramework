@@ -9,7 +9,7 @@ namespace VampireCommandFramework.Breadstone
 
 	[HarmonyPriority(200)]
 	[HarmonyPatch(typeof(ChatMessageSystem), nameof(ChatMessageSystem.OnUpdate))]
-	public class ChatMessageSystem_Patch
+	public static class ChatMessageSystem_Patch
 	{
 		public static bool Prefix(ChatMessageSystem __instance)
 		{

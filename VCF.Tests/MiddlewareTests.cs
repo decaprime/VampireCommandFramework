@@ -8,7 +8,7 @@ namespace VCF.Tests;
 
 public class MiddlewareTests
 {
-	private ICommandContext TEST_CONTEXT;
+	private ICommandContext? TEST_CONTEXT;
 
 	[SetUp]
 	public void Setup()

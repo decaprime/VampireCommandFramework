@@ -20,8 +20,8 @@ public class CommandContextTests
 	}
 
 	private static bool DefaultConstructorCalled, ConcreteConstructorCalled, GenericConstructorCalled;
-	private GoodContext _goodContext;
-	private BadContext _badContext;
+	private GoodContext? _goodContext;
+	private BadContext? _badContext;
 
 	[Test]
 	public void Default_Bound_To_Specific_Concrete_Contexts()
@@ -136,7 +136,7 @@ public class CommandContextTests
 		}
 
 		public void Reply(string v) => Log.Debug(v);
-		
+
 	}
 
 	public class BadContext : ICommandContext

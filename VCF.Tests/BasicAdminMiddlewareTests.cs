@@ -26,7 +26,7 @@ public class BasicAdminMiddlewareTests
 	[Test] public void Admin_Allowed_AllUsers() => Assert.That(CommandRegistry.Handle(AdminCtx, ".allusers"), Is.EqualTo(CommandResult.Success));
 	[Test] public void Admin_Allowed_Default() => Assert.That(CommandRegistry.Handle(AdminCtx, ".default"), Is.EqualTo(CommandResult.Success));
 
-	[Test] 
+	[Test]
 	public void Default_Middleware_Can_Be_Removed()
 	{
 		Assert.That(CommandRegistry.Handle(UsersCtx, ".adminonly"), Is.EqualTo(CommandResult.Denied), "By default user should be denied.");

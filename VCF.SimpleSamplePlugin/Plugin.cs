@@ -26,6 +26,6 @@ namespace VCF.SimpleSamplePlugin
 	public class SimplePluginCommands
 	{
 		[Command("ping")]
-		public void Ping(ICommandContext ctx, int num =5) => ctx.Reply($"pong Counter={Plugin.Counter+=num}");
+		public void Ping(ICommandContext ctx, int num = 5) => ctx.Reply($"pong Counter={Plugin.Counter += num}");
 	}
 }

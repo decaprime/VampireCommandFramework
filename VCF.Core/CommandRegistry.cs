@@ -274,7 +274,7 @@ public static class CommandRegistry
 		catch (Exception e)
 		{
 			Log.Warning($"Hit unexpected exception executing command {command.Attribute.Id}\n: {e}");
-			throw e;
+			throw;
 		}
 
 		HandleAfterExecute(ctx, command);
