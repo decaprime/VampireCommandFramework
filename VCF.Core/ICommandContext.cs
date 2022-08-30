@@ -1,6 +1,5 @@
 ﻿using ProjectM.Network;
 using System;
-using Wetstone.Hooks;
 
 namespace VampireCommandFramework;
 

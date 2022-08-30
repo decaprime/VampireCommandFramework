@@ -5,8 +5,6 @@ using HarmonyLib;
 namespace VampireCommandFramework;
 
 [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
-[BepInDependency("xyz.molenzwiebel.wetstone")]
-[Wetstone.API.Reloadable]
 internal class Plugin : BasePlugin
 {
 	private Harmony _harmony;
@@ -18,27 +16,13 @@ internal class Plugin : BasePlugin
 		_harmony = new Harmony(PluginInfo.PLUGIN_GUID);
 		_harmony.PatchAll();
 
-		Wetstone.Hooks.Chat.OnChatMessage += Chat_OnChatMessage;
-
 		IL2CPPChainloader.Instance.Plugins.TryGetValue(PluginInfo.PLUGIN_GUID, out var info);
 		Log.LogMessage($"VCF Loaded: {info?.Metadata.Version}");
-	}
-
-	private void Chat_OnChatMessage(Wetstone.Hooks.VChatEvent e)
-	{
-		var ctx = new ChatCommandContext(e);
-		var command = CommandRegistry.Handle(ctx, e.Message);
-		
-		if (command != null)
-		{
-			e.Cancel();
-		}
 	}
 
 	public override bool Unload()
 	{
 		_harmony.UnpatchSelf();
-		Wetstone.Hooks.Chat.OnChatMessage -= Chat_OnChatMessage;
 		return true;
 	}
 }

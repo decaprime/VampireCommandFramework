@@ -20,7 +20,6 @@
 		<PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
 		<PackageReference Include="VRising.Unhollowed.Client" Version="0.5.42584" />
-		<PackageReference Include="Wetstone" Version="1.1.0" />
 	</ItemGroup>
 
 	<ItemGroup>

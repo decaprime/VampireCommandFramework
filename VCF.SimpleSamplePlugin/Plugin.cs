@@ -6,9 +6,7 @@ using PluginInfo = VCF.SimpleSamplePlugin.MyPluginInfo;
 namespace VCF.SimpleSamplePlugin
 {
 	[BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
-	[BepInDependency("xyz.molenzwiebel.wetstone")]
 	[BepInDependency("gg.deca.VampireCommandFramework")]
-	[Wetstone.API.Reloadable]
 	internal class Plugin : BasePlugin
 	{
 		public override void Load()
