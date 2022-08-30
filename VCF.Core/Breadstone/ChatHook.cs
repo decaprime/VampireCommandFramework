@@ -26,9 +26,9 @@ namespace VampireCommandFramework.Breadstone
 
 					VChatEvent ev = new VChatEvent(fromData.User, fromData.Character, messageText, chatEventData.MessageType, userData);
 					var ctx = new ChatCommandContext(ev);
-					var cmd = CommandRegistry.Handle(ctx, messageText);
-					
-					if (cmd != null)
+					var result = CommandRegistry.Handle(ctx, messageText);
+
+					if (result != CommandResult.Unmatched)
 					{
 						__instance.EntityManager.AddComponent<DestroyTag>(entity);
 						return false;

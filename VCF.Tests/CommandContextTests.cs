@@ -28,9 +28,8 @@ public class CommandContextTests
 	{
 
 		CommandRegistry.RegisterCommandType(typeof(DefaultConstructorCommands));
-
-		Assert.IsNotNull(CommandRegistry.Handle(_goodContext, ".Default-GoodContextTest"), "Command should be invoked with GoodContext");
-		Assert.IsNull(CommandRegistry.Handle(_badContext, ".Default-GoodContextTest"), "Command should not be invoked with wrong context");
+		Assert.That(CommandRegistry.Handle(_goodContext, ".Default-GoodContextTest"), Is.EqualTo(CommandResult.Success), "Command should be invoked with GoodContext");
+		Assert.That(CommandRegistry.Handle(_badContext, ".Default-GoodContextTest"), Is.EqualTo(CommandResult.InternalError), "Command should not be invoked with wrong context");
 		Assert.IsTrue(DefaultConstructorCalled);
 	}
 
@@ -39,8 +38,8 @@ public class CommandContextTests
 	{
 		CommandRegistry.RegisterCommandType(typeof(DefaultConstructorCommands));
 
-		Assert.IsNotNull(CommandRegistry.Handle(_goodContext, ".Default-InterfaceContextTest"), "Command should be invoked with GoodContext");
-		Assert.IsNotNull(CommandRegistry.Handle(_badContext, ".Default-InterfaceContextTest"), "Command should be invoked with BadContext");
+		Assert.That(CommandRegistry.Handle(_goodContext, ".Default-InterfaceContextTest"), Is.EqualTo(CommandResult.Success), "Command should be invoked with GoodContext");
+		Assert.That(CommandRegistry.Handle(_badContext, ".Default-InterfaceContextTest"), Is.EqualTo(CommandResult.Success), "Command should be invoked with BadContext");
 		Assert.IsTrue(DefaultConstructorCalled);
 	}
 
@@ -49,14 +48,14 @@ public class CommandContextTests
 	{
 		CommandRegistry.RegisterCommandType(typeof(ConcreteConstructorCommands));
 
-		Assert.IsNotNull(CommandRegistry.Handle(_goodContext, ".Concrete-GoodContextTest"), "Command should be invoked with GoodContext");
-		Assert.IsNull(CommandRegistry.Handle(_badContext, ".Concrete-GoodContextTest"), "Command should not be invoked with wrong context");
+		Assert.That(CommandRegistry.Handle(_goodContext, ".Concrete-GoodContextTest"), Is.EqualTo(CommandResult.Success), "Command should be invoked with GoodContext");
+		Assert.That(CommandRegistry.Handle(_badContext, ".Concrete-GoodContextTest"), Is.EqualTo(CommandResult.InternalError), "Command should not be invoked with wrong context");
 		Assert.IsTrue(ConcreteConstructorCalled);
 
 
 		// TODO: factor into unique test what about admin check
 		_goodContext.IsAdmin = false;
-		Assert.IsNull(CommandRegistry.Handle(_goodContext, ".Concrete-GoodContextTest"), "Command should not be invoked with wrong context");
+		Assert.That(CommandRegistry.Handle(_goodContext, ".Concrete-GoodContextTest"), Is.EqualTo(CommandResult.Denied), "Command should not be invoked with wrong context");
 	}
 
 	[Test]
@@ -64,9 +63,9 @@ public class CommandContextTests
 	{
 		CommandRegistry.RegisterCommandType(typeof(ConcreteConstructorCommands));
 
-		Assert.IsNotNull(CommandRegistry.Handle(_goodContext, ".Concrete-InterfaceContextTest"), "Command should be invoked with GoodContext");
+		Assert.That(CommandRegistry.Handle(_goodContext, ".Concrete-InterfaceContextTest"), Is.EqualTo(CommandResult.Success), "Command should be invoked with GoodContext");
 		// TODO: Expand on this case, this means you've created a command that can respond more generically than the class containing it can be constructed
-		Assert.IsNull(CommandRegistry.Handle(_badContext, ".Concrete-InterfaceContextTest"), "Command should be invoked with BadContext");
+		Assert.That(CommandRegistry.Handle(_badContext, ".Concrete-InterfaceContextTest"), Is.EqualTo(CommandResult.InternalError), "Command should be invoked with BadContext");
 		Assert.IsTrue(ConcreteConstructorCalled);
 	}
 
@@ -75,8 +74,8 @@ public class CommandContextTests
 	{
 		CommandRegistry.RegisterCommandType(typeof(GenericConstructorCommands));
 
-		Assert.IsNotNull(CommandRegistry.Handle(_goodContext, ".Generic-GoodContextTest"), "Command should be invoked with GoodContext");
-		Assert.IsNull(CommandRegistry.Handle(_badContext, ".Generic-GoodContextTest"), "Command should not be invoked with wrong context");
+		Assert.That(CommandRegistry.Handle(_goodContext, ".Generic-GoodContextTest"), Is.EqualTo(CommandResult.Success), "Command should be invoked with GoodContext");
+		Assert.That(CommandRegistry.Handle(_badContext, ".Generic-GoodContextTest"), Is.EqualTo(CommandResult.InternalError), "Command should not be invoked with wrong context");
 		Assert.IsTrue(GenericConstructorCalled);
 	}
 
@@ -85,8 +84,8 @@ public class CommandContextTests
 	{
 		CommandRegistry.RegisterCommandType(typeof(GenericConstructorCommands));
 
-		Assert.IsNotNull(CommandRegistry.Handle(_goodContext, ".Generic-InterfaceContextTest"), "Command should be invoked with GoodContext");
-		Assert.IsNotNull(CommandRegistry.Handle(_badContext, ".Generic-InterfaceContextTest"), "Command should be invoked with BadContext");
+		Assert.That(CommandRegistry.Handle(_goodContext, ".Generic-InterfaceContextTest"), Is.EqualTo(CommandResult.Success), "Command should be invoked with GoodContext");
+		Assert.That(CommandRegistry.Handle(_badContext, ".Generic-InterfaceContextTest"), Is.EqualTo(CommandResult.Success), "Command should be invoked with BadContext");
 		Assert.IsTrue(GenericConstructorCalled);
 	}
 

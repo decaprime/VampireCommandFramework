@@ -27,7 +27,7 @@ public class MiddlewareTests
 		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).Returns(true);
 
 		CommandRegistry.Middlewares.Add(middleware);
-		Assert.IsNotNull(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"));
+		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"), Is.EqualTo(CommandResult.Success));
 
 
 		A.CallTo(() => middleware.BeforeExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
@@ -44,7 +44,7 @@ public class MiddlewareTests
 		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).Returns(false);
 
 		CommandRegistry.Middlewares.Add(middleware);
-		Assert.IsNull(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"));
+		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"), Is.EqualTo(CommandResult.Denied));
 
 
 		A.CallTo(() => middleware.BeforeExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
@@ -76,7 +76,7 @@ public class MiddlewareTests
 		CommandRegistry.Middlewares.Add(middleware2);
 		CommandRegistry.Middlewares.Add(middleware3);
 
-		Assert.IsNull(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"));
+		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"), Is.EqualTo(CommandResult.Denied));
 
 		A.CallTo(() => middleware1.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
 		A.CallTo(() => middleware2.CanExecute(A<ICommandContext>._, A<ChatCommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();

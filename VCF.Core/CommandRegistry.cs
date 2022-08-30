@@ -126,13 +126,13 @@ public static class CommandRegistry
 		}
 	}
 
-	public record ChatCommand(ChatCommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters, Type ContextType, Type ConstructorType);
+	internal record ChatCommand(ChatCommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters, Type ContextType, Type ConstructorType);
 
 	// todo: document this default behavior, it's just not something to ship without but you can Middlewares.Claer();
 	private static List<CommandMiddleware> DEFAULT_MIDDLEWARES = new() { new VCF.Core.Basics.BasicAdminCheck() };
 	public static List<CommandMiddleware> Middlewares { get; } = new() { new VCF.Core.Basics.BasicAdminCheck() };
 
-	public static ChatCommand Handle(ICommandContext ctx, string input)
+	public static CommandResult Handle(ICommandContext ctx, string input)
 	{
 		static bool HandleCanExecute(ICommandContext ctx, ChatCommand command)
 		{
@@ -163,20 +163,20 @@ public static class CommandRegistry
 
 		var (command, args) = _cache.GetCommand(input);
 
-		if (command == null) return null; // NOT FOUND
+		if (command == null) return CommandResult.Unmatched; // NOT FOUND
 
 		// Handle Context Type not matching command
 		if (!command.ContextType.IsAssignableFrom(ctx?.GetType()))
 		{
 			Log.Warning($"Matched [{command.Attribute.Id}] but can not assign {command.ContextType.Name} from {ctx?.GetType().Name}");
-			return null;
+			return CommandResult.InternalError;
 		}
 
 		// Then handle this invocation's context not being valid for the command classes custom constructor
 		if (command.Constructor != null && !command.ConstructorType.IsAssignableFrom(ctx?.GetType()))
 		{
 			Log.Warning($"Matched [{command.Attribute.Id}] but can not assign {command.ConstructorType.Name} from {ctx?.GetType().Name}");
-			return null;
+			return CommandResult.InternalError;
 		}
 
 		var argCount = args.Length;
@@ -191,7 +191,7 @@ public static class CommandRegistry
 			if (!canDefault)
 			{
 				// todo: error you bad at defaulting values, how you explain to someone?
-				return null;
+				return CommandResult.UsageError;
 			}
 			for (var i = argCount; i < paramsCount; i++)
 			{
@@ -220,13 +220,13 @@ public static class CommandRegistry
 				{
 					// todo: error matched type but failed to convert arg to type
 					ctx.Reply($"<color=red>[error]</color> Failed converted parameter: {e.Message}");
-					return null;
+					return CommandResult.UsageError;
 				}
 				catch (Exception e)
 				{
 					// todo: failed custom converter unhandled
 					Log.Warning($"Hit unexpected exception {e}");
-					throw e;
+					return CommandResult.InternalError;
 				}
 			}
 			else
@@ -240,7 +240,7 @@ public static class CommandRegistry
 				catch (Exception e)
 				{
 					ctx.Reply($"<color=red>[error]</color> Failed converted parameter: {e.Message}");
-					return null;
+					return CommandResult.UsageError;
 				}
 			}
 		}
@@ -256,7 +256,7 @@ public static class CommandRegistry
 		if (!HandleCanExecute(ctx, command))
 		{
 			ctx.Reply($"<color=red>[denied]</color> {command.Attribute.Id}");
-			return null; // todo: need better return type
+			return CommandResult.Denied;
 		}
 
 		HandleBeforeExecute(ctx, command);
@@ -269,7 +269,7 @@ public static class CommandRegistry
 		catch (TargetInvocationException tie) when (tie.InnerException is ChatCommandException e)
 		{
 			ctx.Reply($"<color=red>[error]</color> {e.Message}");
-			return null;
+			return CommandResult.CommandError;
 		}
 		catch (Exception e)
 		{
@@ -279,7 +279,7 @@ public static class CommandRegistry
 
 		HandleAfterExecute(ctx, command);
 
-		return command;
+		return CommandResult.Success;
 	}
 
 	public static void RegisterConverter(Type converter)
