@@ -3,7 +3,7 @@ using VampireCommandFramework;
 
 namespace Consumer;
 
-[ChatCommandGroup("horse", shortHand: "h")]
+[CommandGroup("horse", shortHand: "h")]
 public class HorseCommands
 {
 	private Entity? ClosestHorse;
@@ -12,19 +12,19 @@ public class HorseCommands
 		ClosestHorse = HorseUtility.FindClosestHorse(ctx);
 	}
 
-	[ChatCommand("adminonly", adminOnly: true)]
+	[Command("adminonly", adminOnly: true)]
 	public void AdminCommand(ICommandContext ctx)
 	{
 		Console.WriteLine("You must be an admin");
 	}
 
-	[ChatCommand("breed")]
+	[Command("breed")]
 	public void Breed(ICommandContext ctx)
 	{
 		Console.WriteLine("I don't mean to stare, we don't have to breed.");
 	}
 
-	[ChatCommand("call")]
+	[Command("call")]
 	public void Call(ICommandContext ctx, NamedHorse? target = null)
 	{
 		Console.WriteLine($"You called? {(target == null ? "Default" : "Closest")}");
@@ -32,18 +32,18 @@ public class HorseCommands
 		/* ... */
 	}
 
-	[ChatCommand("call")]
+	[Command("call")]
 	public void Call(ICommandContext ctx, int a, int b)
 	{
 	}
 
-	[ChatCommand("set speed")]
+	[Command("set speed")]
 	public void SetSpeed(ICommandContext ctx, float newSpeed)
 	{
 		/* ... */
 	}
 
-	[ChatCommand("color")]
+	[Command("color")]
 	public void ColorHorse(ICommandContext ctx, HorseColor color)
 	{
 		/* ... */
@@ -53,7 +53,7 @@ public class HorseCommands
 public record NamedHorse(Entity Horse);
 public enum HorseColor { Black, Brown, Blonde }
 
-public class NamedHorseConverter : ChatCommandArgumentConverter<NamedHorse?>
+public class NamedHorseConverter : CommandArgumentConverter<NamedHorse?>
 {
 	// Only Ted apparently
 	public override NamedHorse? Parse(ICommandContext ctx, string input)

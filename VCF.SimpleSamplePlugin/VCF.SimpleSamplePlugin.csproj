@@ -10,85 +10,12 @@
 		<IsPackable>false</IsPackable>
 	</PropertyGroup>
 
-
-	<PropertyGroup>
-		<UnhollowedDllPath>L:\SteamLibrary\steamapps\common\VRising\BepInEx\unhollowed</UnhollowedDllPath>
-	</PropertyGroup>
-
-
 	<ItemGroup>
 		<PackageReference Include="BepInEx.IL2CPP" Version="6.0.0-*" IncludeAssets="compile" />
 		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
-		<PackageReference Include="Wetstone" Version="1.1.0" />
+		<PackageReference Include="VRising.Unhollowed.Client" Version="0.5.*"/>
 	</ItemGroup>
-
-
 	<ItemGroup>
-	  <ProjectReference Include="..\VCF.Core\VCF.Core.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Reference Include="IL2Cppmscorlib">
-			<HintPath>$(UnhollowedDllPath)\Il2Cppmscorlib.dll</HintPath>
-		</Reference>
-
-		<Reference Include="Il2CppSystem">
-			<HintPath>$(UnhollowedDllPath)\Il2CppSystem.dll</HintPath>
-		</Reference>
-
-		<Reference Include="ProjectM.Shared">
-			<HintPath>$(UnhollowedDllPath)\ProjectM.Shared.dll</HintPath>
-		</Reference>
-
-		<Reference Include="ProjectM">
-			<HintPath>$(UnhollowedDllPath)\ProjectM.dll</HintPath>
-		</Reference>
-
-		<Reference Include="ProjectM.CastleBuilding">
-			<HintPath>$(UnhollowedDllPath)\ProjectM.CastleBuilding.Systems.dll</HintPath>
-		</Reference>
-
-		<Reference Include="ProjectM.CodeGeneration">
-			<HintPath>$(UnhollowedDllPath)\ProjectM.CodeGeneration.dll</HintPath>
-		</Reference>
-		<Reference Include="ProjectM.Pathfinding">
-			<HintPath>$(UnhollowedDllPath)\ProjectM.Pathfinding.dll</HintPath>
-		</Reference>
-		<Reference Include="Unity.Collections">
-			<HintPath>$(UnhollowedDllPath)\Unity.Collections.dll</HintPath>
-		</Reference>
-
-		<Reference Include="Unity.Entities">
-			<HintPath>$(UnhollowedDllPath)\Unity.Entities.dll</HintPath>
-		</Reference>
-		<Reference Include="Unity.Transforms">
-			<HintPath>$(UnhollowedDllPath)\Unity.Transforms.dll</HintPath>
-		</Reference>
-		<Reference Include="Unity.Mathematics">
-			<HintPath>$(UnhollowedDllPath)\Unity.Mathematics.dll</HintPath>
-		</Reference>
-		<Reference Include="Unity.Entities.Hybrid">
-			<HintPath>$(UnhollowedDllPath)\Unity.Entities.Hybrid.dll</HintPath>
-		</Reference>
-
-		<Reference Include="Unity.Jobs">
-			<HintPath>$(UnhollowedDllPath)\Unity.Jobs.dll</HintPath>
-		</Reference>
-
-		<Reference Include="UnityEngine">
-			<HintPath>$(UnhollowedDllPath)\UnityEngine.dll</HintPath>
-		</Reference>
-
-		<Reference Include="UnityEngine.CoreModule">
-			<HintPath>$(UnhollowedDllPath)\UnityEngine.CoreModule.dll</HintPath>
-		</Reference>
-
-		<Reference Include="Stunlock.Core">
-			<HintPath>$(UnhollowedDllPath)\Stunlock.Core.dll</HintPath>
-		</Reference>
-
-		<Reference Include="UnityEngine.InputLegacyModule">
-			<HintPath>$(UnhollowedDllPath)\UnityEngine.InputLegacyModule.dll</HintPath>
-		</Reference>
+		<ProjectReference Include="..\VCF.Core\VCF.Core.csproj" />
 	</ItemGroup>
 </Project>

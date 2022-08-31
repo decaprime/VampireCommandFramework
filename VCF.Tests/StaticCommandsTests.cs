@@ -16,19 +16,19 @@ public class StaticCommandsTests
 	public void Static_Class_Static_Method_Command()
 	{
 		CommandRegistry.RegisterCommandType(typeof(StaticClassTestCommands));
-		Assert.IsNotNull(CommandRegistry.Handle(A.Fake<ICommandContext>(), ".test"));
+		Assert.That(CommandRegistry.Handle(A.Fake<ICommandContext>(), ".test"), Is.EqualTo(CommandResult.Success));
 	}
 
 	[Test]
 	public void Regular_Class_Static_Method_Command()
 	{
 		CommandRegistry.RegisterCommandType(typeof(RegularClassTestCommands));
-		Assert.IsNotNull(CommandRegistry.Handle(A.Fake<ICommandContext>(), ".test"));
+		Assert.That(CommandRegistry.Handle(A.Fake<ICommandContext>(), ".test"), Is.EqualTo(CommandResult.Success));
 	}
 
 	public static class StaticClassTestCommands
 	{
-		[ChatCommand("test")]
+		[Command("test")]
 		public static void Test(ICommandContext ctx) { }
 	}
 
@@ -39,7 +39,7 @@ public class StaticCommandsTests
 			Assert.Fail("Should not run this.");
 		}
 
-		[ChatCommand("test")]
+		[Command("test")]
 		public static void Test(ICommandContext ctx) { }
 	}
 }

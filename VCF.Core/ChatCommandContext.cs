@@ -1,7 +1,7 @@
-﻿using ProjectM.Network;
+﻿using ProjectM;
+using ProjectM.Network;
 using System;
-using Wetstone.API;
-using Wetstone.Hooks;
+using VampireCommandFramework.Breadstone;
 
 namespace VampireCommandFramework;
 
@@ -38,18 +38,16 @@ public class ChatCommandContext : ICommandContext
 	public IServiceProvider Services { get; }
 
 	public string Name => User?.CharacterName.ToString();
-
 	public bool IsAdmin => User?.IsAdmin ?? false;
-
 	public void Reply(string v)
 	{
-		User.SendSystemMessage(v);
+		ServerChatUtils.SendSystemMessageToClient(VWorld.Server.EntityManager, User, v);
 	}
 
 	// todo: expand this, just throw from here as void and build a handler that can message user/log.
 	// note: return exception lets callers throw ctx.Error() and control flow is obvious 
-	public ChatCommandException Error(string LogMessage)
+	public CommandException Error(string LogMessage)
 	{
-		return new ChatCommandException(LogMessage);
+		return new CommandException(LogMessage);
 	}
 }

@@ -18,31 +18,31 @@ public class BasicAdminMiddlewareTests
 		A.CallTo(() => AdminCtx.IsAdmin).Returns(true);
 	}
 
-	[Test] public void User_Denied_AdminOnly() => Assert.IsNull(CommandRegistry.Handle(UsersCtx, ".adminonly"));
-	[Test] public void User_Allowed_AllUsers() => Assert.IsNotNull(CommandRegistry.Handle(UsersCtx, ".allusers"));
-	[Test] public void User_Allowed_Default() => Assert.IsNotNull(CommandRegistry.Handle(UsersCtx, ".default"));
+	[Test] public void User_Denied_AdminOnly() => Assert.That(CommandRegistry.Handle(UsersCtx, ".adminonly"), Is.EqualTo(CommandResult.Denied));
+	[Test] public void User_Allowed_AllUsers() => Assert.That(CommandRegistry.Handle(UsersCtx, ".allusers"), Is.EqualTo(CommandResult.Success));
+	[Test] public void User_Allowed_Default() => Assert.That(CommandRegistry.Handle(UsersCtx, ".default"), Is.EqualTo(CommandResult.Success));
 
-	[Test] public void Admin_Allowed_AdminOnly() => Assert.IsNotNull(CommandRegistry.Handle(AdminCtx, ".adminonly"));
-	[Test] public void Admin_Allowed_AllUsers() => Assert.IsNotNull(CommandRegistry.Handle(AdminCtx, ".allusers"));
-	[Test] public void Admin_Allowed_Default() => Assert.IsNotNull(CommandRegistry.Handle(AdminCtx, ".default"));
+	[Test] public void Admin_Allowed_AdminOnly() => Assert.That(CommandRegistry.Handle(AdminCtx, ".adminonly"), Is.EqualTo(CommandResult.Success));
+	[Test] public void Admin_Allowed_AllUsers() => Assert.That(CommandRegistry.Handle(AdminCtx, ".allusers"), Is.EqualTo(CommandResult.Success));
+	[Test] public void Admin_Allowed_Default() => Assert.That(CommandRegistry.Handle(AdminCtx, ".default"), Is.EqualTo(CommandResult.Success));
 
-	[Test] 
+	[Test]
 	public void Default_Middleware_Can_Be_Removed()
 	{
-		Assert.IsNull(CommandRegistry.Handle(UsersCtx, ".adminonly"), "By default user should be denied.");
+		Assert.That(CommandRegistry.Handle(UsersCtx, ".adminonly"), Is.EqualTo(CommandResult.Denied), "By default user should be denied.");
 		CommandRegistry.Middlewares.Clear(); // The intention being you'd replace with a more comprehensive system
-		Assert.IsNotNull(CommandRegistry.Handle(UsersCtx, ".adminonly"), "After clearing middle user should be allowed.");
+		Assert.That(CommandRegistry.Handle(UsersCtx, ".adminonly"), Is.EqualTo(CommandResult.Success), "After clearing middle user should be allowed.");
 	}
 
 	public class TestCommands
 	{
-		[ChatCommand("adminonly", adminOnly: true)]
+		[Command("adminonly", adminOnly: true)]
 		public void AdminOnly(ICommandContext ctx) { }
 
-		[ChatCommand("allusers", adminOnly: false)]
+		[Command("allusers", adminOnly: false)]
 		public void AlLUsers(ICommandContext ctx) { }
 
-		[ChatCommand("default")]
+		[Command("default")]
 		public void DefaultCommand(ICommandContext ctx) { }
 	}
 }

@@ -1,0 +1,8 @@
+root = true
+
+[*]
+indent_style = tab
+
+
+[{*.cs}]
+csharp_style_namespace_declarations = file_scoped:warning
