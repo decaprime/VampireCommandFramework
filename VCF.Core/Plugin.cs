@@ -12,6 +12,13 @@ internal class Plugin : BasePlugin
 	public override void Load()
 	{
 		VampireCommandFramework.Log.Instance = Log;
+
+		if (!Breadstone.VWorld.IsServer)
+		{
+			Log.LogMessage("Note: Vampire Command Framework is loading on the client but only adds functionality on the server at this time, seeing this message is not a problem or bug.");
+			return;
+		}
+		
 		// Plugin startup logic
 		_harmony = new Harmony(PluginInfo.PLUGIN_GUID);
 		_harmony.PatchAll();
