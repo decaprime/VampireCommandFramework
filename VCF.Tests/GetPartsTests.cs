@@ -1,5 +1,5 @@
 ﻿using NUnit.Framework;
-using VampireCommandFramework;
+using VampireCommandFramework.Common;
 
 namespace VCF.Tests;
 

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
+using VampireCommandFramework.Common;
+using VampireCommandFramework.Registry;
 
 namespace VampireCommandFramework;
 
@@ -177,13 +179,9 @@ public static class CommandRegistry
 
 	public static void RegisterConverter(Type converter)
 	{
-		// TODO: need to explicitly fail here, wtf you asking me to do if you aren't a converter
-
 		// check base type
 		if (converter.BaseType.Name != typeof(CommandArgumentConverter<>).Name)
 		{
-			// can't bud
-			Log.Error("wrong type");
 			return;
 		}
 
@@ -195,6 +193,7 @@ public static class CommandRegistry
 			Log.Error("Can't find TryParse that matches");
 			return;
 		}
+
 		var convertFrom = converter.BaseType.GenericTypeArguments?.SingleOrDefault();
 		if (convertFrom == null)
 		{
@@ -205,16 +204,18 @@ public static class CommandRegistry
 		_converters.Add(convertFrom, (converterInstance, methodInfo));
 	}
 
-	public static void RegisterAssembly(Assembly assembly, string assemblyPrefix = null)
+	public static void RegisterAll() => RegisterAll(Assembly.GetCallingAssembly());
+
+	public static void RegisterAll(Assembly assembly)
 	{
 		var types = assembly.GetTypes();
 		foreach (var type in types)
 		{
-			RegisterCommandType(type, assemblyPrefix);
+			RegisterCommandType(type);
 		}
 	}
 
-	public static void RegisterCommandType(Type type, string assemblyPrefix = null)
+	public static void RegisterCommandType(Type type)
 	{
 		var groupAttr = type.GetCustomAttribute<CommandGroupAttribute>();
 		var assembly = type.Assembly;
@@ -231,11 +232,11 @@ public static class CommandRegistry
 
 		foreach (var method in methods)
 		{
-			RegisterMethod(assembly, assemblyPrefix, groupAttr, contextConstructor, method);
+			RegisterMethod(assembly, groupAttr, contextConstructor, method);
 		}
 	}
 
-	private static void RegisterMethod(Assembly assembly, string assemblyPrefix, CommandGroupAttribute groupAttr, ConstructorInfo customConstructor, MethodInfo method)
+	private static void RegisterMethod(Assembly assembly, CommandGroupAttribute groupAttr, ConstructorInfo customConstructor, MethodInfo method)
 	{
 		var commandAttr = method.GetCustomAttribute<CommandAttribute>();
 		if (commandAttr == null) return;
@@ -282,7 +283,7 @@ public static class CommandRegistry
 		// BAD CODE INC.. permute and cache keys -> command
 		var groupNames = groupAttr == null ? new[] { "" } : groupAttr.ShortHand == null ? new[] { $"{groupAttr.Name} " } : new[] { $"{groupAttr.Name} ", $"{groupAttr.ShortHand} ", };
 		var names = commandAttr.ShortHand == null ? new[] { commandAttr.Name } : new[] { commandAttr.Name, commandAttr.ShortHand };
-		var prefix = groupAttr?.Prefix ?? assemblyPrefix ?? DEFAULT_PREFIX; // TODO: get from attribute/config
+		var prefix = DEFAULT_PREFIX; // TODO: get from attribute/config
 		foreach (var group in groupNames)
 		{
 			foreach (var name in names)

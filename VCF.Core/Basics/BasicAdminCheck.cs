@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using VampireCommandFramework;
+using VampireCommandFramework.Common;
 
 namespace VCF.Core.Basics;
 

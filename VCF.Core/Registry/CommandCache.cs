@@ -2,8 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using VampireCommandFramework.Common;
 
-namespace VampireCommandFramework;
+namespace VampireCommandFramework.Registry;
 
 internal class CommandCache
 {
@@ -21,7 +22,7 @@ internal class CommandCache
 		}
 
 		// somewhat lame datastructure but memory cheap and tiny for space of commands
-		for (var i = (p - d); i <= p; i++)
+		for (var i = p - d; i <= p; i++)
 		{
 			_newCache[key] = _newCache.GetValueOrDefault(key, new()) ?? new();
 			if (_newCache[key].ContainsKey(i))

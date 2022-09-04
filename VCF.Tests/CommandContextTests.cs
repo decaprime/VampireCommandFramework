@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VampireCommandFramework;
+using VampireCommandFramework.Common;
+using VampireCommandFramework.Registry;
 
 namespace VCF.Tests;
 

@@ -3,6 +3,7 @@ using ProjectM;
 using Unity.Entities;
 using HarmonyLib;
 using Unity.Collections;
+using VampireCommandFramework.Registry;
 
 namespace VampireCommandFramework.Breadstone;
 

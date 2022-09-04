@@ -11,7 +11,7 @@ internal class Plugin : BasePlugin
 
 	public override void Load()
 	{
-		VampireCommandFramework.Log.Instance = Log;
+		Common.Log.Instance = Log;
 
 		if (!Breadstone.VWorld.IsServer)
 		{

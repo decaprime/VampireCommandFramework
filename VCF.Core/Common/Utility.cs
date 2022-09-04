@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace VampireCommandFramework;
+namespace VampireCommandFramework.Common;
 
 internal static class Utility
 {

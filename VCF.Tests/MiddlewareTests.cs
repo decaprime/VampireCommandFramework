@@ -1,8 +1,8 @@
 using Consumer;
-using VampireCommandFramework;
 using NUnit.Framework;
 using FakeItEasy;
 using System.Reflection;
+using VampireCommandFramework;
 
 namespace VCF.Tests;
 
@@ -15,7 +15,7 @@ public class MiddlewareTests
 	{
 		CommandRegistry.Reset();
 		CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
-		CommandRegistry.RegisterAssembly(typeof(HorseCommands).Assembly);
+		CommandRegistry.RegisterAll(typeof(HorseCommands).Assembly);
 		TEST_CONTEXT = A.Fake<ICommandContext>();
 	}
 

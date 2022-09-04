@@ -1,6 +1,7 @@
 ﻿using BepInEx;
 using BepInEx.IL2CPP;
 using VampireCommandFramework;
+using VampireCommandFramework.Registry;
 using PluginInfo = VCF.SimpleSamplePlugin.MyPluginInfo;
 
 namespace VCF.SimpleSamplePlugin;
@@ -12,7 +13,7 @@ internal class Plugin : BasePlugin
 	public override void Load()
 	{
 		Log.LogDebug("Simple Plugin Loaded");
-		CommandRegistry.RegisterAssembly(typeof(SimplePluginCommands).Assembly);
+		CommandRegistry.RegisterAll(typeof(SimplePluginCommands).Assembly);
 	}
 
 	public override bool Unload()

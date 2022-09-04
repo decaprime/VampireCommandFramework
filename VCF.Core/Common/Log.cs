@@ -1,7 +1,7 @@
 ﻿using BepInEx.Logging;
 using System;
 
-namespace VampireCommandFramework;
+namespace VampireCommandFramework.Common;
 
 internal static class Log
 {
