@@ -209,6 +209,13 @@ public static class CommandRegistry
 	public static void RegisterAll(Assembly assembly)
 	{
 		var types = assembly.GetTypes();
+
+		// Register Converters first as typically commands will depend on them.
+		foreach (var type in types)
+		{
+			RegisterConverter(type);
+		}
+
 		foreach (var type in types)
 		{
 			RegisterCommandType(type);

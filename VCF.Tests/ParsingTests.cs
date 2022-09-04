@@ -27,7 +27,6 @@ public class ParsingTests
 	public void CanRegisterAssemblyWithCustomConverter()
 	{
 		CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
-		CommandRegistry.RegisterAll(typeof(HorseCommands).Assembly);
 		Assert.Pass();
 	}
 
@@ -56,16 +55,14 @@ public class ParsingTests
 	[Test]
 	public void CanCallWithCustomTypeWithDefault()
 	{
-		CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
-		CommandRegistry.RegisterAll(typeof(HorseCommands).Assembly);
+		CommandRegistry.RegisterAll();
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse call"), Is.EqualTo(CommandResult.Success));
 	}
 
 	[Test]
 	public void CanCallWithOverloadedName()
 	{
-		CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
-		CommandRegistry.RegisterAll(typeof(HorseCommands).Assembly);
+		CommandRegistry.RegisterAll();
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse call 123 41234"), Is.EqualTo(CommandResult.Success));
 	}
 
@@ -75,8 +72,7 @@ public class ParsingTests
 		var ctx = A.Fake<ICommandContext>();
 		A.CallTo(() => ctx.Error(A<string>._)).Returns(new CommandException());
 
-		CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
-		CommandRegistry.RegisterAll(typeof(HorseCommands).Assembly);
+		CommandRegistry.RegisterAll();
 		Assert.That(CommandRegistry.Handle(ctx, ".horse call Ted"), Is.EqualTo(CommandResult.Success));
 		Assert.That(CommandRegistry.Handle(ctx, ".horse call Bill"), Is.EqualTo(CommandResult.UsageError));
 		A.CallTo(() => ctx.Error("Only Ted")).MustHaveHappenedOnceExactly();
@@ -85,7 +81,7 @@ public class ParsingTests
 	[Test]
 	public void CanCallWithEnum()
 	{
-		CommandRegistry.RegisterAll(typeof(HorseCommands).Assembly);
+		CommandRegistry.RegisterAll();
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse color Black"), Is.EqualTo(CommandResult.Success));
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse color Brown"), Is.EqualTo(CommandResult.Success));
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse color Purple"), Is.EqualTo(CommandResult.UsageError));

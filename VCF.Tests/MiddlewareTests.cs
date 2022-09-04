@@ -14,8 +14,7 @@ public class MiddlewareTests
 	public void Setup()
 	{
 		CommandRegistry.Reset();
-		CommandRegistry.RegisterConverter(typeof(NamedHorseConverter));
-		CommandRegistry.RegisterAll(typeof(HorseCommands).Assembly);
+		CommandRegistry.RegisterAll();
 		TEST_CONTEXT = A.Fake<ICommandContext>();
 	}
 
