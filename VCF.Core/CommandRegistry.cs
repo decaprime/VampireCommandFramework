@@ -12,32 +12,6 @@ public static class CommandRegistry
 	private static CommandCache _cache = new();
 	private static Dictionary<Type, (object instance, MethodInfo tryParse)> _converters = new();
 
-	// also todo: maybe bad code to rewrite, look later
-	internal static IEnumerable<string> GetParts(string input)
-	{
-		var parts = input.Split(" ", StringSplitOptions.RemoveEmptyEntries);
-		for (var i = 0; i < parts.Length; i++)
-		{
-			if (parts[i].StartsWith('"'))
-			{
-				parts[i] = parts[i].TrimStart('"');
-				for (var start = i++; i < parts.Length; i++)
-				{
-					if (parts[i].EndsWith('"'))
-					{
-						parts[i] = parts[i].TrimEnd('"');
-						yield return string.Join(" ", parts[start..(i + 1)]);
-						break;
-					}
-				}
-			}
-			else
-			{
-				yield return parts[i];
-			}
-		}
-	}
-
 	internal static void Reset()
 	{
 		// testability and a bunch of static crap, I know...
@@ -47,94 +21,13 @@ public static class CommandRegistry
 		_cache = new();
 	}
 
-	private class CommandCache
-	{
-		private static Dictionary<Type, HashSet<(string, int)>> _commandAssemblyMap = new();
-
-		private Dictionary<string, Dictionary<int, ChatCommand>> _newCache = new();
-		public void AddCommand(string key, ParameterInfo[] parameters, ChatCommand command)
-		{
-			var p = parameters.Length;
-			var d = parameters.Where(p => p.HasDefaultValue).Count();
-			if (!_newCache.ContainsKey(key))
-			{
-				_newCache.Add(key, new());
-			}
-
-			// somewhat lame datastructure but memory cheap and tiny for space of commands
-			for (var i = (p - d); i <= p; i++)
-			{
-				_newCache[key] = _newCache.GetValueOrDefault(key, new()) ?? new();
-				if (_newCache[key].ContainsKey(i))
-				{
-					Log.Warning($"Command {key} has multiple commands with {i} parameters");
-					continue;
-				}
-				_newCache[key][i] = command;
-				var typeKey = command.Method.DeclaringType;
-
-				var usedParams = _commandAssemblyMap.TryGetValue(typeKey, out var existing) ? existing : new();
-				usedParams.Add((key, i));
-				_commandAssemblyMap[typeKey] = usedParams;
-			}
-		}
-
-		public (ChatCommand command, string[] args) GetCommand(string rawInput)
-		{
-			// todo: I think allows for overlap between .foo "bar" and .foo bar <no parameters>
-			foreach (var (key, argCounts) in _newCache)
-			{
-				if (rawInput.StartsWith(key))
-				{
-					var remainder = rawInput.Substring(key.Length).Trim();
-					var parameters = GetParts(remainder).ToArray();
-					if (argCounts.TryGetValue(parameters.Length, out var cmd))
-					{
-						return (cmd, parameters);
-					}
-				}
-			}
-
-			return (null, null);
-		}
-
-		public void RemoveCommandsFromType(Type t)
-		{
-			if (!_commandAssemblyMap.TryGetValue(t, out var commands))
-			{
-				return;
-			}
-			foreach (var (key, index) in commands)
-			{
-				if (!_newCache.TryGetValue(key, out var dict))
-				{
-					continue;
-				}
-				dict.Remove(index);
-			}
-			_commandAssemblyMap.Remove(t);
-		}
-
-		public void Clear()
-		{
-			_newCache.Clear();
-		}
-
-		internal void Reset()
-		{
-			throw new NotImplementedException();
-		}
-	}
-
-	internal record ChatCommand(CommandAttribute Attribute, MethodInfo Method, ConstructorInfo Constructor, ParameterInfo[] Parameters, Type ContextType, Type ConstructorType);
-
 	// todo: document this default behavior, it's just not something to ship without but you can Middlewares.Claer();
 	private static List<CommandMiddleware> DEFAULT_MIDDLEWARES = new() { new VCF.Core.Basics.BasicAdminCheck() };
 	public static List<CommandMiddleware> Middlewares { get; } = new() { new VCF.Core.Basics.BasicAdminCheck() };
 
 	public static CommandResult Handle(ICommandContext ctx, string input)
 	{
-		static bool HandleCanExecute(ICommandContext ctx, ChatCommand command)
+		static bool HandleCanExecute(ICommandContext ctx, CommandMetadata command)
 		{
 			Log.Debug($"Executing {Middlewares.Count} CanHandle Middlwares:");
 			foreach (var middleware in Middlewares)
@@ -150,12 +43,12 @@ public static class CommandRegistry
 		}
 
 		// todo: rethink, maybe you only want 1 door here, people will confuse these and it's probably possible to collapse
-		static void HandleBeforeExecute(ICommandContext ctx, ChatCommand command)
+		static void HandleBeforeExecute(ICommandContext ctx, CommandMetadata command)
 		{
 			Middlewares.ForEach(m => m.BeforeExecute(ctx, command.Attribute, command.Method));
 		}
 
-		static void HandleAfterExecute(ICommandContext ctx, ChatCommand command)
+		static void HandleAfterExecute(ICommandContext ctx, CommandMetadata command)
 		{
 			Middlewares.ForEach(m => m.AfterExecute(ctx, command.Attribute, command.Method));
 		}
@@ -381,7 +274,7 @@ public static class CommandRegistry
 
 		var constructorType = customConstructor?.GetParameters().Single().ParameterType;
 
-		var command = new ChatCommand(commandAttr, method, customConstructor, parameters, first.ParameterType, constructorType);
+		var command = new CommandMetadata(commandAttr, method, customConstructor, parameters, first.ParameterType, constructorType);
 
 		// todo include prefix and group in here, this shoudl be a string match
 		// todo handle collisons here
