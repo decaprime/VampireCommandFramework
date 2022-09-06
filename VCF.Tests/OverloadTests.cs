@@ -68,8 +68,8 @@ public class OverloadTests
 		var result = CommandRegistry.Handle(AnyCtx, ".overload test test");
 		Assert.That(result, Is.EqualTo(CommandResult.UsageError));
 		Assert.That(sb.ToString(), Is.EqualTo($"""
-			.overload how you use it
-			.overload (arg)
+			[vcf] .overload how you use it
+			[vcf] .overload (arg)
 
 			"""));
 	}
@@ -85,7 +85,7 @@ public class OverloadTests
 		var result = CommandRegistry.Handle(AnyCtx, ".nooverload test test");
 		Assert.That(result, Is.EqualTo(CommandResult.UsageError));
 		Assert.That(sb.ToString(), Is.EqualTo($"""
-			.nooverload no-arg
+			[vcf] .nooverload no-arg
 
 			"""));
 	}

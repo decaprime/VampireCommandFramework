@@ -19,7 +19,7 @@ internal static class HelpCommands
 		// Generate usage text automatically
 		string usageText = GetOrGenerateUsage(command);
 
-		var prefix = "[vcf] ".Color(Color.Primary) + CommandRegistry.DEFAULT_PREFIX.Color(Color.Yellow);
+		var prefix = CommandRegistry.DEFAULT_PREFIX.Color(Color.Yellow);
 		var commandString = fullCommandName.Color(Color.White);
 		return $"{prefix}{commandString}{usageText}";
 	}

@@ -20,7 +20,7 @@ public class HelpTests
 
 		var command = new CommandMetadata(new CommandAttribute(commandName, usage: usage, description: description), null, null, null, null, null, null);
 		var text = HelpCommands.GenerateHelpText(command);
-		Assert.That(text, Is.EqualTo($"<color=#ddd>.</color><color=#eee>{commandName}</color> {usage}"));
+		Assert.That(text, Is.EqualTo($"<color=#dd0>.</color><color=#eee>{commandName}</color> {usage}"));
 	}
 
 	[Test]
@@ -35,7 +35,7 @@ public class HelpTests
 
 		var text = HelpCommands.GenerateHelpText(command);
 
-		Assert.That(text, Is.EqualTo($"<color=#ddd>.</color><color=#eee>{commandName}</color> <color=#ddd>({paramName})</color>"));
+		Assert.That(text, Is.EqualTo($"<color=#dd0>.</color><color=#eee>{commandName}</color> <color=#ccc>({paramName})</color>"));
 	}
 
 	[Test]
@@ -53,6 +53,6 @@ public class HelpTests
 
 		var text = HelpCommands.GenerateHelpText(command);
 
-		Assert.That(text, Is.EqualTo($"<color=#ddd>.</color><color=#eee>{commandName}</color> <color=#0d0>[{paramName}={paramValue}]</color>"));
+		Assert.That(text, Is.EqualTo($"<color=#dd0>.</color><color=#eee>{commandName}</color> <color=#0c0>[{paramName}={paramValue}]</color>"));
 	}
 }
