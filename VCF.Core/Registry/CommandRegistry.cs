@@ -56,9 +56,21 @@ public static class CommandRegistry
 		}
 
 
-		var (command, args) = _cache.GetCommand(input);
+		var matchedCommand = _cache.GetCommand(input);
+		var (command, args) = (matchedCommand.Command, matchedCommand.Args);
 
-		if (command == null) return CommandResult.Unmatched; // NOT FOUND
+		if (!matchedCommand.IsMatched)
+		{
+			if(!matchedCommand.HasPartial) return CommandResult.Unmatched; // NOT FOUND
+
+			
+			foreach(var possible in matchedCommand.PartialMatches)
+			{
+				ctx.Reply(Basics.HelpCommands.GenerateHelpText(possible)) ;
+			}
+
+			return CommandResult.UsageError;
+		}
 
 		// Handle Context Type not matching command
 		if (!command.ContextType.IsAssignableFrom(ctx?.GetType()))

@@ -12,7 +12,7 @@ internal class CommandCache
 
 	private Dictionary<string, Dictionary<int, CommandMetadata>> _newCache = new();
 
-	public void AddCommand(string key, ParameterInfo[] parameters, CommandMetadata command)
+	internal void AddCommand(string key, ParameterInfo[] parameters, CommandMetadata command)
 	{
 		var p = parameters.Length;
 		var d = parameters.Where(p => p.HasDefaultValue).Count();
@@ -39,9 +39,10 @@ internal class CommandCache
 		}
 	}
 
-	public (CommandMetadata command, string[] args) GetCommand(string rawInput)
+	internal CacheResult GetCommand(string rawInput)
 	{
 		// todo: I think allows for overlap between .foo "bar" and .foo bar <no parameters>
+		List<CommandMetadata> possibleMatches = new();
 		foreach (var (key, argCounts) in _newCache)
 		{
 			if (rawInput.StartsWith(key))
@@ -50,15 +51,19 @@ internal class CommandCache
 				var parameters = Utility.GetParts(remainder).ToArray();
 				if (argCounts.TryGetValue(parameters.Length, out var cmd))
 				{
-					return (cmd, parameters);
+					return new CacheResult(cmd, parameters, null);
+				}
+				else
+				{
+					possibleMatches.AddRange(argCounts.Values);
 				}
 			}
 		}
 
-		return (null, null);
+		return new CacheResult(null, null, possibleMatches.Distinct());
 	}
 
-	public void RemoveCommandsFromType(Type t)
+	internal void RemoveCommandsFromType(Type t)
 	{
 		if (!_commandAssemblyMap.TryGetValue(t, out var commands))
 		{
@@ -75,7 +80,7 @@ internal class CommandCache
 		_commandAssemblyMap.Remove(t);
 	}
 
-	public void Clear()
+	internal void Clear()
 	{
 		_newCache.Clear();
 	}
