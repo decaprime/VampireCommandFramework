@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using NUnit.Framework;
+using System.Text;
 
 namespace VCF.Tests;
 
@@ -13,6 +14,7 @@ public static class Any
 
 	public static string String(int minLength = stringMinLength, int maxLength = stringMaxLength)
 	{
+		Assert.IsTrue(minLength <= maxLength);
 		StringBuilder sb = new();
 		do
 		{

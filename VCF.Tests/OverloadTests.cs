@@ -14,13 +14,13 @@ public class OverloadTests
 
 	public class OverloadTestCommands
 	{
-		[Command("overload", usage: "no-arg")]
+		[Command("overload", usage: "how you use it")]
 		public void Overload(ICommandContext ctx)
 		{
 			IsFirstCalled = true;
 		}
 
-		[Command("overload", usage: "one-arg")]
+		[Command("overload")]
 		public void Overload(ICommandContext ctx, string arg)
 		{
 			IsSecondCalled = true;
@@ -63,12 +63,13 @@ public class OverloadTests
 		A.CallTo(() => AnyCtx.Reply(A<string>._)).Invokes((string s) => sb.AppendLine(s));
 		// Todo build TestContext that lets you assert on replys/errors.
 
+		Format.Mode = Format.FormatMode.None;
 
 		var result = CommandRegistry.Handle(AnyCtx, ".overload test test");
 		Assert.That(result, Is.EqualTo(CommandResult.UsageError));
 		Assert.That(sb.ToString(), Is.EqualTo($"""
-			overload no-arg (todo)
-			overload one-arg (todo)
+			.overload how you use it
+			.overload (arg)
 
 			"""));
 	}
@@ -79,10 +80,12 @@ public class OverloadTests
 		StringBuilder sb = new();
 		A.CallTo(() => AnyCtx.Reply(A<string>._)).Invokes((string s) => sb.AppendLine(s));
 
+		Format.Mode = Format.FormatMode.None;
+
 		var result = CommandRegistry.Handle(AnyCtx, ".nooverload test test");
 		Assert.That(result, Is.EqualTo(CommandResult.UsageError));
 		Assert.That(sb.ToString(), Is.EqualTo($"""
-			nooverload no-arg (todo)
+			.nooverload no-arg
 
 			"""));
 	}

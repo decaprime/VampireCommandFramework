@@ -10,7 +10,7 @@ namespace VampireCommandFramework;
 
 public static class CommandRegistry
 {
-	private const string DEFAULT_PREFIX = ".";
+	internal const string DEFAULT_PREFIX = ".";
 	private static CommandCache _cache = new();
 	private static Dictionary<Type, (object instance, MethodInfo tryParse)> _converters = new();
 
@@ -61,12 +61,12 @@ public static class CommandRegistry
 
 		if (!matchedCommand.IsMatched)
 		{
-			if(!matchedCommand.HasPartial) return CommandResult.Unmatched; // NOT FOUND
+			if (!matchedCommand.HasPartial) return CommandResult.Unmatched; // NOT FOUND
 
-			
-			foreach(var possible in matchedCommand.PartialMatches)
+
+			foreach (var possible in matchedCommand.PartialMatches)
 			{
-				ctx.Reply(Basics.HelpCommands.GenerateHelpText(possible)) ;
+				ctx.Reply(Basics.HelpCommands.GenerateHelpText(possible));
 			}
 
 			return CommandResult.UsageError;
@@ -294,7 +294,7 @@ public static class CommandRegistry
 
 		var constructorType = customConstructor?.GetParameters().Single().ParameterType;
 
-		var command = new CommandMetadata(commandAttr, method, customConstructor, parameters, first.ParameterType, constructorType);
+		var command = new CommandMetadata(commandAttr, method, customConstructor, parameters, first.ParameterType, constructorType, groupAttr);
 
 		// todo include prefix and group in here, this shoudl be a string match
 		// todo handle collisons here
