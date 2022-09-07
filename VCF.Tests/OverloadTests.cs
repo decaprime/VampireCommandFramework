@@ -1,6 +1,5 @@
 ﻿using FakeItEasy;
 using NUnit.Framework;
-using System.Text;
 using VampireCommandFramework;
 using VampireCommandFramework.Registry;
 
@@ -10,7 +9,7 @@ public class OverloadTests
 {
 	internal static bool IsFirstCalled = false;
 	internal static bool IsSecondCalled = false;
-	private readonly ICommandContext AnyCtx = A.Fake<ICommandContext>();
+	private AssertReplyContext AnyCtx = new();
 
 	public class OverloadTestCommands
 	{
@@ -33,6 +32,8 @@ public class OverloadTests
 	[SetUp]
 	public void Setup()
 	{
+		Format.Mode = Format.FormatMode.None;
+		AnyCtx = new();
 		CommandRegistry.Reset();
 		CommandRegistry.RegisterCommandType(typeof(OverloadTestCommands));
 		IsFirstCalled = false;
@@ -59,34 +60,23 @@ public class OverloadTests
 	[Test]
 	public void Overload_PartialMatch_ListsAll()
 	{
-		StringBuilder sb = new();
-		A.CallTo(() => AnyCtx.Reply(A<string>._)).Invokes((string s) => sb.AppendLine(s));
-		// Todo build TestContext that lets you assert on replys/errors.
-
-		Format.Mode = Format.FormatMode.None;
-
 		var result = CommandRegistry.Handle(AnyCtx, ".overload test test");
 		Assert.That(result, Is.EqualTo(CommandResult.UsageError));
-		Assert.That(sb.ToString(), Is.EqualTo($"""
+		AnyCtx.AssertReply($"""
 			[vcf] .overload how you use it
 			[vcf] .overload (arg)
 
-			"""));
+			""");
 	}
 
 	[Test]
 	public void Nooverload_PartialMatch_ListsOne()
 	{
-		StringBuilder sb = new();
-		A.CallTo(() => AnyCtx.Reply(A<string>._)).Invokes((string s) => sb.AppendLine(s));
-
-		Format.Mode = Format.FormatMode.None;
-
 		var result = CommandRegistry.Handle(AnyCtx, ".nooverload test test");
 		Assert.That(result, Is.EqualTo(CommandResult.UsageError));
-		Assert.That(sb.ToString(), Is.EqualTo($"""
+		AnyCtx.AssertReply($"""
 			[vcf] .nooverload no-arg
 
-			"""));
+			""");
 	}
 }

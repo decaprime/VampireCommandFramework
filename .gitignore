@@ -291,3 +291,4 @@ __pycache__/
 
 # Local Development
 *.secrets
+*.lutconfig

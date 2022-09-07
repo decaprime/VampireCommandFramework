@@ -12,7 +12,62 @@ using VampireCommandFramework.Registry;
 
 namespace VCF.Tests;
 public class HelpTests
-{	
+{
+	private AssertReplyContext AnyCtx;
+
+	[SetUp]
+	public void Setup()
+	{
+		AnyCtx = new();
+		Format.Mode = Format.FormatMode.None;
+		CommandRegistry.Reset();
+		CommandRegistry.RegisterCommandType(typeof(HelpCommands));
+	}
+
+	[Test]
+	public void HelpCommand_RegisteredByDefault()
+	{
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help"), Is.EqualTo(CommandResult.Success));
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help-legacy"), Is.EqualTo(CommandResult.Success));
+	}
+
+	[Test]
+	public void HelpCommand_Help_ListsAll()
+	{
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help"), Is.EqualTo(CommandResult.Success));
+		AnyCtx.AssertReply($"""
+			[vcf] Listing all commands
+			[vcf] Commands from VampireCommandFramework:
+			[vcf] .help-legacy [search=]
+			[vcf] .help [search=]
+			
+			""");
+	}
+
+	[Test]
+	public void HelpCommand_Help_ListsAssemblyMatch()
+	{
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help VampireCommandFramework"), Is.EqualTo(CommandResult.Success));
+		AnyCtx.AssertReply($"""
+			[vcf] Commands from VampireCommandFramework:
+			[vcf] .help-legacy [search=]
+			[vcf] .help [search=]
+			
+			""");
+	}
+
+	[Test]
+	public void HelpCommand_Help_ShowSpecificCommand()
+	{
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help help-legacy"), Is.EqualTo(CommandResult.Success));
+		AnyCtx.AssertReply($"""
+			[vcf] help-legacy (help-legacy) Passes through a .help command that is compatible with other mods that don't use VCF.
+			[vcf] .help-legacy [search=]
+			[vcf] Aliases: .help-legacy
+			
+			""");
+	}
+
 	[Test]
 	public void GenerateHelpText_UsageSpecified()
 	{
@@ -20,7 +75,7 @@ public class HelpTests
 
 		var command = new CommandMetadata(new CommandAttribute(commandName, usage: usage, description: description), null, null, null, null, null, null);
 		var text = HelpCommands.GenerateHelpText(command);
-		Assert.That(text, Is.EqualTo($"<color=#dd0>.</color><color=#eee>{commandName}</color> {usage}"));
+		Assert.That(text, Is.EqualTo($".{commandName} {usage}"));
 	}
 
 	[Test]
@@ -35,7 +90,7 @@ public class HelpTests
 
 		var text = HelpCommands.GenerateHelpText(command);
 
-		Assert.That(text, Is.EqualTo($"<color=#dd0>.</color><color=#eee>{commandName}</color> <color=#ccc>({paramName})</color>"));
+		Assert.That(text, Is.EqualTo($".{commandName} ({paramName})"));
 	}
 
 	[Test]
@@ -53,6 +108,6 @@ public class HelpTests
 
 		var text = HelpCommands.GenerateHelpText(command);
 
-		Assert.That(text, Is.EqualTo($"<color=#dd0>.</color><color=#eee>{commandName}</color> <color=#0c0>[{paramName}={paramValue}]</color>"));
+		Assert.That(text, Is.EqualTo($".{commandName} [{paramName}={paramValue}]"));
 	}
 }

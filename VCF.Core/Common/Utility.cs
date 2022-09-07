@@ -32,5 +32,5 @@ internal static class Utility
 		}
 	}
 
-	internal static void SysReply(this ICommandContext ctx, string input) => ctx.Reply($"[vcf] ".Color(Color.Primary) + input);
+	internal static void SysReply(this ICommandContext ctx, string input) => ctx.Reply($"[vcf] ".Color(Color.Primary) + input.Color(Color.White));
 }

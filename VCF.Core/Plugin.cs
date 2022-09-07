@@ -23,6 +23,8 @@ internal class Plugin : BasePlugin
 		_harmony = new Harmony(PluginInfo.PLUGIN_GUID);
 		_harmony.PatchAll();
 
+		CommandRegistry.RegisterCommandType(typeof(Basics.HelpCommands));
+
 		IL2CPPChainloader.Instance.Plugins.TryGetValue(PluginInfo.PLUGIN_GUID, out var info);
 		Log.LogMessage($"VCF Loaded: {info?.Metadata.Version}");
 	}

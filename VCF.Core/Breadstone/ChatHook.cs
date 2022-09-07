@@ -28,7 +28,15 @@ public static class ChatMessageSystem_Patch
 				var ctx = new ChatCommandContext(ev);
 				var result = CommandRegistry.Handle(ctx, messageText);
 
-				if (result != CommandResult.Unmatched)
+				// Legacy .help pass through support
+				if (result == CommandResult.Success && messageText.StartsWith(".help-legacy", System.StringComparison.InvariantCulture))
+				{
+					chatEventData.MessageText = messageText.Replace("-legacy", string.Empty);
+					__instance.EntityManager.SetComponentData(entity, chatEventData);
+					return true;
+				}
+
+				else if (result != CommandResult.Unmatched)
 				{
 					__instance.EntityManager.AddComponent<DestroyTag>(entity);
 					return false;

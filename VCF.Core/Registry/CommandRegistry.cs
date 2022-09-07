@@ -19,6 +19,7 @@ public static class CommandRegistry
 		// testability and a bunch of static crap, I know...
 		Middlewares.Clear();
 		Middlewares.AddRange(DEFAULT_MIDDLEWARES);
+		AssemblyCommandMap.Clear();
 		_converters.Clear();
 		_cache = new();
 	}
@@ -303,15 +304,24 @@ public static class CommandRegistry
 		var groupNames = groupAttr == null ? new[] { "" } : groupAttr.ShortHand == null ? new[] { $"{groupAttr.Name} " } : new[] { $"{groupAttr.Name} ", $"{groupAttr.ShortHand} ", };
 		var names = commandAttr.ShortHand == null ? new[] { commandAttr.Name } : new[] { commandAttr.Name, commandAttr.ShortHand };
 		var prefix = DEFAULT_PREFIX; // TODO: get from attribute/config
+		List<string> keys = new();
 		foreach (var group in groupNames)
 		{
 			foreach (var name in names)
 			{
 				var key = $"{prefix}{group}{name}";
 				_cache.AddCommand(key, parameters, command);
+				keys.Add(key);
 			}
 		}
+
+		AssemblyCommandMap.TryGetValue(assembly, out var commandKeyCache);
+		commandKeyCache ??= new();
+		commandKeyCache[command] = keys;
+		AssemblyCommandMap[assembly] = commandKeyCache;
 	}
+
+	internal static Dictionary<Assembly, Dictionary<CommandMetadata, List<string>>> AssemblyCommandMap { get; } = new();
 
 	public static void UnregisterAssembly(Assembly assembly)
 	{
