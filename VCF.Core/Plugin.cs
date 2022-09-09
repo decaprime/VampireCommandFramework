@@ -1,6 +1,7 @@
 ﻿using BepInEx;
 using BepInEx.IL2CPP;
 using HarmonyLib;
+using VampireCommandFramework.Basics;
 
 namespace VampireCommandFramework;
 
@@ -24,6 +25,7 @@ internal class Plugin : BasePlugin
 		_harmony.PatchAll();
 
 		CommandRegistry.RegisterCommandType(typeof(Basics.HelpCommands));
+		CommandRegistry.RegisterCommandType(typeof(Basics.BepInExConfigCommands));
 
 		IL2CPPChainloader.Instance.Plugins.TryGetValue(PluginInfo.PLUGIN_GUID, out var info);
 		Log.LogMessage($"VCF Loaded: {info?.Metadata.Version}");
