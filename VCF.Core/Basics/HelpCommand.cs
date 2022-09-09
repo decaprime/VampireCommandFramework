@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using VampireCommandFramework.Common;
 using VampireCommandFramework.Registry;
 
@@ -19,11 +20,13 @@ internal static class HelpCommands
 	{
 		// If search is specified first look for matching assembly, then matching command
 		if (!string.IsNullOrEmpty(search))
-		{			
+		{
 			var foundAssembly = CommandRegistry.AssemblyCommandMap.FirstOrDefault(x => string.Equals(search, x.Key.GetName().Name, StringComparison.OrdinalIgnoreCase));
 			if (foundAssembly.Value != null)
 			{
-				PrintAssemblyHelp(foundAssembly);
+				StringBuilder sb = new();
+				PrintAssemblyHelp(foundAssembly, sb);
+				ctx.SysPaginatedReply(sb);
 			}
 			else
 			{
@@ -35,41 +38,46 @@ internal static class HelpCommands
 					|| x.Value.Contains(search, StringComparer.InvariantCultureIgnoreCase)
 				);
 
-				foreach (var command in individualResults)
-				{
-					PrintCommandHelp(command.Key, command.Value);
-				}
 
 				if (!individualResults.Any())
 				{
-					ctx.SysReply($"Could not find any commands for \"{search}\"");
+					throw ctx.Error($"Could not find any commands for \"{search}\"");
 				}
+
+				var sb = new StringBuilder();
+				foreach (var command in individualResults)
+				{
+					PrintCommandHelp(command.Key, command.Value, sb);
+				}
+				ctx.SysPaginatedReply(sb);
 			}
 		}
 		else
 		{
-			ctx.SysReply($"Listing {B("all")} commands");
+			var sb = new StringBuilder();
+			sb.AppendLine($"Listing {B("all")} commands");
 			foreach (var assembly in CommandRegistry.AssemblyCommandMap)
 			{
-				PrintAssemblyHelp(assembly);
+				PrintAssemblyHelp(assembly, sb);
 			}
+			ctx.SysPaginatedReply(sb);
 		}
 
-		void PrintAssemblyHelp(KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly)
+		void PrintAssemblyHelp(KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb)
 		{
-			ctx.SysReply($"Commands from {B(assembly.Key.GetName().Name)}:");
+			sb.AppendLine($"Commands from {B(assembly.Key.GetName().Name)}:");
 			foreach (var command in assembly.Value.Keys)
 			{
-				ctx.SysReply(GenerateHelpText(command));
+				sb.AppendLine(GenerateHelpText(command));
 			}
 		}
 
-		void PrintCommandHelp(CommandMetadata command, List<string> aliases)
+		void PrintCommandHelp(CommandMetadata command, List<string> aliases, StringBuilder sb)
 		{
 
-			ctx.SysReply($"{B(command.Attribute.Name)} ({command.Attribute.Id}) {command.Attribute.Description}");
-			ctx.SysReply(GenerateHelpText(command));
-			ctx.SysReply($"Aliases: {string.Join(", ", aliases).Italic()}");
+			sb.AppendLine($"{B(command.Attribute.Name)} ({command.Attribute.Id}) {command.Attribute.Description}");
+			sb.AppendLine(GenerateHelpText(command));
+			sb.AppendLine($"Aliases: {string.Join(", ", aliases).Italic()}");
 		}
 	}
 
