@@ -65,7 +65,8 @@ internal static class HelpCommands
 
 		void PrintAssemblyHelp(KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb)
 		{
-			sb.AppendLine($"Commands from {B(assembly.Key.GetName().Name)}:");
+			var name = assembly.Key.GetName().Name;
+			sb.AppendLine($"Commands from {name.Medium().Color(Color.Primary)}:".Underline());
 			foreach (var command in assembly.Value.Keys)
 			{
 				sb.AppendLine(GenerateHelpText(command));
