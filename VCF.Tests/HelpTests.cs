@@ -37,10 +37,11 @@ public class HelpTests
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".help"), Is.EqualTo(CommandResult.Success));
 		AnyCtx.AssertReply($"""
 			[vcf] Listing all commands
-			[vcf] Commands from VampireCommandFramework:
-			[vcf] .help-legacy [search=]
-			[vcf] .help [search=]
-			
+			Commands from VampireCommandFramework:
+			.help-legacy [search=]
+			.help [search=]
+
+
 			""");
 	}
 
@@ -50,8 +51,9 @@ public class HelpTests
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".help VampireCommandFramework"), Is.EqualTo(CommandResult.Success));
 		AnyCtx.AssertReply($"""
 			[vcf] Commands from VampireCommandFramework:
-			[vcf] .help-legacy [search=]
-			[vcf] .help [search=]
+			.help-legacy [search=]
+			.help [search=]
+
 			
 			""");
 	}
@@ -62,8 +64,9 @@ public class HelpTests
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".help help-legacy"), Is.EqualTo(CommandResult.Success));
 		AnyCtx.AssertReply($"""
 			[vcf] help-legacy (help-legacy) Passes through a .help command that is compatible with other mods that don't use VCF.
-			[vcf] .help-legacy [search=]
-			[vcf] Aliases: .help-legacy
+			.help-legacy [search=]
+			Aliases: .help-legacy
+
 			
 			""");
 	}
