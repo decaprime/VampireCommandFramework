@@ -12,5 +12,6 @@ public interface ICommandContext
 	bool IsAdmin { get; }
 
 	CommandException Error(string LogMessage);
+
 	void Reply(string v);
 }

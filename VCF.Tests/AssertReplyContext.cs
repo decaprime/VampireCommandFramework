@@ -27,4 +27,9 @@ public class AssertReplyContext : ICommandContext
 	{
 		Assert.That(_sb.ToString(), Is.EqualTo(expected));
 	}
+
+	public void AssertInternalError()
+	{
+		Assert.That(_sb.ToString(), Is.EqualTo("[vcf] An internal error has occured.\r\n"));
+	}
 }

@@ -1,6 +1,10 @@
 ﻿namespace VampireCommandFramework;
 
-public abstract class CommandArgumentConverter<T>
+public abstract class CommandArgumentConverter<T> : CommandArgumentConverter<T, ICommandContext>
 {
-	public abstract T Parse(ICommandContext ctx, string input);
+}
+
+public abstract class CommandArgumentConverter<T, C> where C : ICommandContext
+{
+	public abstract T Parse(C ctx, string input);
 }

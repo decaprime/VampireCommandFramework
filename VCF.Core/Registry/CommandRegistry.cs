@@ -12,7 +12,7 @@ public static class CommandRegistry
 {
 	internal const string DEFAULT_PREFIX = ".";
 	private static CommandCache _cache = new();
-	private static Dictionary<Type, (object instance, MethodInfo tryParse)> _converters = new();
+	private static Dictionary<Type, (object instance, MethodInfo tryParse, Type contextType)> _converters = new();
 
 	internal static void Reset()
 	{
@@ -84,6 +84,7 @@ public static class CommandRegistry
 		if (command.Constructor != null && !command.ConstructorType.IsAssignableFrom(ctx?.GetType()))
 		{
 			Log.Warning($"Matched [{command.Attribute.Id}] but can not assign {command.ConstructorType.Name} from {ctx?.GetType().Name}");
+			ctx.InternalError();
 			return CommandResult.InternalError;
 		}
 
@@ -115,7 +116,14 @@ public static class CommandRegistry
 
 			if (_converters.TryGetValue(param.ParameterType, out var customConverter))
 			{
-				var (converter, convertMethod) = customConverter;
+				var (converter, convertMethod, converterContextType) = customConverter;
+
+				if (!converterContextType.IsAssignableFrom(ctx.GetType()))
+				{
+					Log.Error($"Converter type {converterContextType.Name} is not assignable from {ctx.GetType().Name}");
+					ctx.InternalError();
+					return CommandResult.InternalError;
+				}
 
 				object result;
 				var tryParseArgs = new object[] { ctx, arg };
@@ -134,6 +142,7 @@ public static class CommandRegistry
 				{
 					// todo: failed custom converter unhandled
 					Log.Warning($"Hit unexpected exception {e}");
+					ctx.InternalError();
 					return CommandResult.InternalError;
 				}
 			}
@@ -182,6 +191,7 @@ public static class CommandRegistry
 		catch (Exception e)
 		{
 			Log.Warning($"Hit unexpected exception executing command {command.Attribute.Id}\n: {e}");
+			ctx.InternalError();
 			return CommandResult.InternalError;
 		}
 
@@ -193,10 +203,15 @@ public static class CommandRegistry
 	public static void RegisterConverter(Type converter)
 	{
 		// check base type
-		if (converter.BaseType.Name != typeof(CommandArgumentConverter<>).Name)
+		var isGenericContext = converter.BaseType.Name == typeof(CommandArgumentConverter<>).Name;
+		var isSpecificContext = converter.BaseType.Name == typeof(CommandArgumentConverter<,>).Name;
+
+		if (!isGenericContext && !isSpecificContext)
 		{
 			return;
 		}
+
+		Log.Debug($"Trying to process {converter} as specifc={isSpecificContext} generic={isGenericContext}");
 
 		object converterInstance = Activator.CreateInstance(converter);
 		MethodInfo methodInfo = converter.GetMethod("Parse", BindingFlags.Public | BindingFlags.Instance | BindingFlags.InvokeMethod);
@@ -207,14 +222,28 @@ public static class CommandRegistry
 			return;
 		}
 
-		var convertFrom = converter.BaseType.GenericTypeArguments?.SingleOrDefault();
+		var args = converter.BaseType.GenericTypeArguments;
+		var convertFrom = args.FirstOrDefault();
 		if (convertFrom == null)
 		{
 			Log.Error("Can't determine generic base type to convert from. ");
 			return;
 		}
 
-		_converters.Add(convertFrom, (converterInstance, methodInfo));
+		Type contextType = typeof(ICommandContext);
+		if (isSpecificContext)
+		{
+			if (args.Length != 2 || !typeof(ICommandContext).IsAssignableFrom(args[1]))
+			{
+				Log.Error("Can't determine generic base type to convert from.");
+				return;
+			}
+
+			contextType = args[1];
+		}
+
+
+		_converters.Add(convertFrom, (converterInstance, methodInfo, contextType));
 	}
 
 	public static void RegisterAll() => RegisterAll(Assembly.GetCallingAssembly());
@@ -247,7 +276,7 @@ public static class CommandRegistry
 		var methods = type.GetMethods();
 
 		ConstructorInfo contextConstructor = type.GetConstructors()
-			.Where(c => typeof(ICommandContext).IsAssignableFrom(c.GetParameters().SingleOrDefault()?.ParameterType))
+			.Where(c => c.GetParameters().Length == 1 && typeof(ICommandContext).IsAssignableFrom(c.GetParameters().SingleOrDefault()?.ParameterType))
 			.FirstOrDefault();
 
 		foreach (var method in methods)

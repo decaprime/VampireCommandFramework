@@ -34,6 +34,8 @@ internal static class Utility
 		}
 	}
 
+	internal static void InternalError(this ICommandContext ctx) => ctx.SysReply("An internal error has occured.");
+
 	internal static void SysReply(this ICommandContext ctx, string input) => ctx.Reply($"[vcf] ".Color(Color.Primary) + input.Color(Color.White));
 
 	internal static void SysPaginatedReply(this ICommandContext ctx, StringBuilder input) => SysPaginatedReply(ctx, input.ToString());

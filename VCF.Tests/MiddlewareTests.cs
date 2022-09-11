@@ -10,11 +10,14 @@ public class MiddlewareTests
 {
 	private ICommandContext? TEST_CONTEXT;
 
+	[Command("test")]
+	public static void TestCommand(ICommandContext ctx) => ctx.Reply("TestCommand");
+
 	[SetUp]
 	public void Setup()
 	{
 		CommandRegistry.Reset();
-		CommandRegistry.RegisterAll();
+		CommandRegistry.RegisterCommandType(typeof(MiddlewareTests));
 		TEST_CONTEXT = A.Fake<ICommandContext>();
 	}
 
@@ -26,7 +29,7 @@ public class MiddlewareTests
 		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).Returns(true);
 
 		CommandRegistry.Middlewares.Add(middleware);
-		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"), Is.EqualTo(CommandResult.Success));
+		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".test"), Is.EqualTo(CommandResult.Success));
 
 
 		A.CallTo(() => middleware.BeforeExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
@@ -43,7 +46,7 @@ public class MiddlewareTests
 		A.CallTo(() => middleware.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).Returns(false);
 
 		CommandRegistry.Middlewares.Add(middleware);
-		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"), Is.EqualTo(CommandResult.Denied));
+		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".test"), Is.EqualTo(CommandResult.Denied));
 
 
 		A.CallTo(() => middleware.BeforeExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustNotHaveHappened();
@@ -75,7 +78,7 @@ public class MiddlewareTests
 		CommandRegistry.Middlewares.Add(middleware2);
 		CommandRegistry.Middlewares.Add(middleware3);
 
-		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".horse breed"), Is.EqualTo(CommandResult.Denied));
+		Assert.That(CommandRegistry.Handle(TEST_CONTEXT, ".test"), Is.EqualTo(CommandResult.Denied));
 
 		A.CallTo(() => middleware1.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
 		A.CallTo(() => middleware2.CanExecute(A<ICommandContext>._, A<CommandAttribute>._, A<MethodInfo>._)).MustHaveHappenedOnceExactly();
