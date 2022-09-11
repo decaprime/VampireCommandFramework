@@ -30,6 +30,6 @@ public class AssertReplyContext : ICommandContext
 
 	public void AssertInternalError()
 	{
-		Assert.That(_sb.ToString(), Is.EqualTo("[vcf] An internal error has occured.\r\n"));
+		Assert.That(_sb.ToString().TrimEnd(Environment.NewLine.ToCharArray()), Is.EqualTo("[vcf] An internal error has occured."));
 	}
 }
