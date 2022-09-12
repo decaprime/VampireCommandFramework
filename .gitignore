@@ -292,3 +292,5 @@ __pycache__/
 # Local Development
 *.secrets
 *.lutconfig
+build/
+dist/

@@ -14,7 +14,10 @@
 		<RootNamespace>VampireCommandFramework</RootNamespace>
 		<Authors>deca</Authors>
 	</PropertyGroup>
-	
+	  <!-- Copy VampireCommandFramework.dll to /dist -->
+	<Target Name="Thunderstore Copy to Dist" AfterTargets="AfterBuild" Condition=" '$(Configuration)' == 'Release'">
+		<Copy SourceFiles="$(OutDir)\VampireCommandFramework.dll" DestinationFolder="$(SolutionDir)/dist" />
+	</Target>
 	<ItemGroup>
 		<PackageReference Include="BepInEx.IL2CPP" Version="6.0.0-*" IncludeAssets="compile" />
 		<PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
