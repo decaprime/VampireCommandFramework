@@ -10,6 +10,7 @@
     <description>V Rising Mod Command Framework</description>
     <icon>images\logo.png</icon>
     <tags>VRising</tags>
+    <readme>docs\README.md</readme>
     <repository type="git" url="https://github.com/decaprime/VampireCommandFramework.git" />
     <dependencies>
       <group targetFramework="netstandard2.1"/>
@@ -18,5 +19,6 @@
   <files>
     <file src="VCF.Core\bin\Release\netstandard2.1\*.*" target="lib\netstandard2.1" />
     <file src="images\logo.png" target="images\" />
+    <file src="README.md" target="docs\README.md" />
   </files>
 </package>
