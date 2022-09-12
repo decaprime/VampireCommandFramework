@@ -1,6 +1,6 @@
 
 # VampireCommandFramework
-![](./images/vcf_laptop_128.png) Framework for V Rising mod developers to easily build commands.
+![](https://github.com/decaprime/VampireCommandFramework/raw/main/images/vcf_laptop_128.png) Framework for V Rising mod developers to easily build commands.
 
 ## `BETA VERSION WARNING`
 #### Please coordinate shipping plugins with this framework with me as I may still need to make breaking changes to the API.
