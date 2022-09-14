@@ -3,7 +3,7 @@ using ProjectM;
 using Unity.Entities;
 using HarmonyLib;
 using Unity.Collections;
-using VampireCommandFramework.Registry;
+using System;
 
 namespace VampireCommandFramework.Breadstone;
 
@@ -26,7 +26,17 @@ public static class ChatMessageSystem_Patch
 
 				VChatEvent ev = new VChatEvent(fromData.User, fromData.Character, messageText, chatEventData.MessageType, userData);
 				var ctx = new ChatCommandContext(ev);
-				var result = CommandRegistry.Handle(ctx, messageText);
+
+				CommandResult result;
+				try
+				{
+					result = CommandRegistry.Handle(ctx, messageText);
+				}
+				catch (Exception e)
+				{
+					Common.Log.Error($"Error while handling chat message {e}");
+					continue;
+				}
 
 				// Legacy .help pass through support
 				if (result == CommandResult.Success && messageText.StartsWith(".help-legacy", System.StringComparison.InvariantCulture))

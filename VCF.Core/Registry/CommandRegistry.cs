@@ -132,11 +132,20 @@ public static class CommandRegistry
 					result = convertMethod.Invoke(converter, tryParseArgs);
 					commandArgs[i + 1] = result;
 				}
-				catch (TargetInvocationException tie) when (tie.InnerException is CommandException e)
+				catch (TargetInvocationException tie)
 				{
-					// todo: error matched type but failed to convert arg to type
-					ctx.Reply($"<color=red>[error]</color> Failed converted parameter: {e.Message}");
-					return CommandResult.UsageError;
+					if (tie.InnerException is CommandException e)
+					{
+						// todo: error matched type but failed to convert arg to type
+						ctx.Reply($"<color=red>[error]</color> Failed converted parameter: {e.Message}");
+						return CommandResult.UsageError;
+					}
+					else
+					{
+						Log.Warning($"Hit unexpected exception {tie}");
+						ctx.InternalError();
+						return CommandResult.InternalError;
+					}
 				}
 				catch (Exception e)
 				{
@@ -166,7 +175,23 @@ public static class CommandRegistry
 		// construct command's type with context if declared only in a non-static class and on a non-static method
 		if (!command.Method.IsStatic && !(command.Method.DeclaringType.IsAbstract && command.Method.DeclaringType.IsSealed))
 		{
-			instance = command.Constructor == null ? Activator.CreateInstance(command.Method.DeclaringType) : command.Constructor.Invoke(new[] { ctx });
+			try
+			{
+				instance = command.Constructor == null ? Activator.CreateInstance(command.Method.DeclaringType) : command.Constructor.Invoke(new[] { ctx });
+			}
+			catch (TargetInvocationException tie)
+			{
+				if (tie.InnerException is CommandException ce)
+				{
+					ctx.SysReply(ce.Message);
+				}
+				else
+				{
+					ctx.InternalError();
+				}
+
+				return CommandResult.InternalError;
+			}
 		}
 
 		// Handle Middlewares

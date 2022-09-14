@@ -1,5 +1,4 @@
-﻿using ProjectM.Network;
-using System;
+﻿using System;
 
 namespace VampireCommandFramework;
 
