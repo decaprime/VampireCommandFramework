@@ -28,22 +28,31 @@ public static class CommandRegistry
 	private static List<CommandMiddleware> DEFAULT_MIDDLEWARES = new() { new VCF.Core.Basics.BasicAdminCheck() };
 	public static List<CommandMiddleware> Middlewares { get; } = new() { new VCF.Core.Basics.BasicAdminCheck() };
 
-	public static CommandResult Handle(ICommandContext ctx, string input)
+	internal static bool CanCommandExecute(ICommandContext ctx, CommandMetadata command)
 	{
-		static bool HandleCanExecute(ICommandContext ctx, CommandMetadata command)
+		Log.Debug($"Executing {Middlewares.Count} CanHandle Middlwares:");
+		foreach (var middleware in Middlewares)
 		{
-			Log.Debug($"Executing {Middlewares.Count} CanHandle Middlwares:");
-			foreach (var middleware in Middlewares)
+			Log.Debug($"\t{middleware.GetType().Name}");
+			try
 			{
-
-				Log.Debug($"\t{middleware.GetType().Name}");
 				if (!middleware.CanExecute(ctx, command.Attribute, command.Method))
 				{
 					return false;
 				}
 			}
-			return true;
+			catch (Exception e)
+			{
+				Log.Error($"Error executing {middleware.GetType().Name} {e}");
+				return false;
+			}
 		}
+		return true;
+	}
+
+	public static CommandResult Handle(ICommandContext ctx, string input)
+	{
+
 
 		// todo: rethink, maybe you only want 1 door here, people will confuse these and it's probably possible to collapse
 		static void HandleBeforeExecute(ICommandContext ctx, CommandMetadata command)
@@ -195,7 +204,7 @@ public static class CommandRegistry
 		}
 
 		// Handle Middlewares
-		if (!HandleCanExecute(ctx, command))
+		if (!CanCommandExecute(ctx, command))
 		{
 			ctx.Reply($"<color=red>[denied]</color> {command.Attribute.Id}");
 			return CommandResult.Denied;

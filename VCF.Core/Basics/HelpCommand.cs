@@ -25,19 +25,20 @@ internal static class HelpCommands
 			if (foundAssembly.Value != null)
 			{
 				StringBuilder sb = new();
-				PrintAssemblyHelp(foundAssembly, sb);
+				PrintAssemblyHelp(ctx, foundAssembly, sb);
 				ctx.SysPaginatedReply(sb);
 			}
 			else
 			{
 				// if we fail to find we assume your query is matching a command, look through all of the commands
-				var commands = CommandRegistry.AssemblyCommandMap.SelectMany(x => x.Value).Select(x => (x.Key, x.Value));
+				var commands = CommandRegistry.AssemblyCommandMap.SelectMany(x => x.Value);//.Select(x => (x.Key, x.Value));
 				var individualResults = commands.Where(x =>
 					string.Equals(x.Key.Attribute.Id, search, StringComparison.InvariantCultureIgnoreCase)
 					|| string.Equals(x.Key.Attribute.Name, search, StringComparison.InvariantCultureIgnoreCase)
 					|| x.Value.Contains(search, StringComparer.InvariantCultureIgnoreCase)
 				);
 
+				individualResults.Where(kvp => CommandRegistry.CanCommandExecute(ctx, kvp.Key));
 
 				if (!individualResults.Any())
 				{
@@ -49,6 +50,7 @@ internal static class HelpCommands
 				{
 					PrintCommandHelp(command.Key, command.Value, sb);
 				}
+
 				ctx.SysPaginatedReply(sb);
 			}
 		}
@@ -58,16 +60,18 @@ internal static class HelpCommands
 			sb.AppendLine($"Listing {B("all")} commands");
 			foreach (var assembly in CommandRegistry.AssemblyCommandMap)
 			{
-				PrintAssemblyHelp(assembly, sb);
+				PrintAssemblyHelp(ctx, assembly, sb);
 			}
 			ctx.SysPaginatedReply(sb);
 		}
 
-		void PrintAssemblyHelp(KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb)
+		void PrintAssemblyHelp(ICommandContext ctx, KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb)
 		{
 			var name = assembly.Key.GetName().Name;
 			sb.AppendLine($"Commands from {name.Medium().Color(Color.Primary)}:".Underline());
-			foreach (var command in assembly.Value.Keys)
+			var commands = assembly.Value.Keys.Where(c => CommandRegistry.CanCommandExecute(ctx, c));
+
+			foreach (var command in commands)
 			{
 				sb.AppendLine(GenerateHelpText(command));
 			}
