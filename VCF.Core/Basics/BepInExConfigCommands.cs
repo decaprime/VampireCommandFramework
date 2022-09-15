@@ -10,7 +10,7 @@ namespace VampireCommandFramework.Basics;
 [CommandGroup("config")]
 public class BepInExConfigCommands
 {
-	[Command("dump")]
+	[Command("dump", adminOnly: true)]
 	public void DumpConfig(ICommandContext ctx, string pluginGuid)
 	{
 		var (guid, info) = IL2CPPChainloader.Instance.Plugins.FirstOrDefault(x => x.Value.Metadata.GUID.Contains(pluginGuid, StringComparison.InvariantCultureIgnoreCase));
@@ -27,7 +27,7 @@ public class BepInExConfigCommands
 		DumpConfig(ctx, guid, plugin);
 	}
 
-	[Command("set")]
+	[Command("set", adminOnly: true)]
 	public void DumpConfig(ICommandContext ctx, string pluginGuid, string section, string key, string value)
 	{
 		var (guid, info) = IL2CPPChainloader.Instance.Plugins.FirstOrDefault(x => x.Value.Metadata.GUID.Contains(pluginGuid, StringComparison.InvariantCultureIgnoreCase));
