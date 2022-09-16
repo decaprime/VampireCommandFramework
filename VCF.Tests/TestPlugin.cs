@@ -37,6 +37,12 @@ public class HorseCommands
 	{
 	}
 
+	[Command("caller")]
+	public void Caller(ICommandContext ctx, int a)
+	{
+		// this is totally different.
+	}
+
 	[Command("set speed")]
 	public void SetSpeed(ICommandContext ctx, float newSpeed)
 	{

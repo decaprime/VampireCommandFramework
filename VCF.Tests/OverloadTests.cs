@@ -65,7 +65,6 @@ public class OverloadTests
 		AnyCtx.AssertReply($"""
 			[vcf] .overload how you use it
 			[vcf] .overload (arg)
-
 			""");
 	}
 
@@ -76,7 +75,6 @@ public class OverloadTests
 		Assert.That(result, Is.EqualTo(CommandResult.UsageError));
 		AnyCtx.AssertReply($"""
 			[vcf] .nooverload no-arg
-
 			""");
 	}
 }

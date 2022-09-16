@@ -25,7 +25,7 @@ public class AssertReplyContext : ICommandContext
 
 	public void AssertReply(string expected)
 	{
-		Assert.That(_sb.ToString(), Is.EqualTo(expected));
+		Assert.That(_sb.ToString().TrimEnd(Environment.NewLine.ToCharArray()), Is.EqualTo(expected));
 	}
 
 	public void AssertInternalError()

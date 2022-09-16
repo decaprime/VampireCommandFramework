@@ -47,6 +47,13 @@ internal class CommandCache
 		{
 			if (rawInput.StartsWith(key))
 			{
+				// there's no need to inspect the parameters if the next character isn't a space or the end of the string
+				// because it means that this was part of a different prefix token
+				if (rawInput.Length > key.Length && rawInput[key.Length] != ' ')
+				{
+					continue;
+				}
+
 				var remainder = rawInput.Substring(key.Length).Trim();
 				var parameters = Utility.GetParts(remainder).ToArray();
 				if (argCounts.TryGetValue(parameters.Length, out var cmd))

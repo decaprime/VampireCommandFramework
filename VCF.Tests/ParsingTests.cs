@@ -78,4 +78,11 @@ public class ParsingTests
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse color Brown"), Is.EqualTo(CommandResult.Success));
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse color Purple"), Is.EqualTo(CommandResult.UsageError));
 	}
+
+	[Test]
+	public void CommandsCanBeSubstrings()
+	{
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse call 1 2"), Is.EqualTo(CommandResult.Success));
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse caller 1"), Is.EqualTo(CommandResult.Success));
+	}
 }

@@ -40,8 +40,6 @@ public class HelpTests
 			Commands from VampireCommandFramework:
 			.help-legacy [search=]
 			.help [search=]
-
-
 			""");
 	}
 
@@ -53,8 +51,6 @@ public class HelpTests
 			[vcf] Commands from VampireCommandFramework:
 			.help-legacy [search=]
 			.help [search=]
-
-			
 			""");
 	}
 
@@ -66,8 +62,6 @@ public class HelpTests
 			[vcf] help-legacy (help-legacy) Passes through a .help command that is compatible with other mods that don't use VCF.
 			.help-legacy [search=]
 			Aliases: .help-legacy
-
-			
 			""");
 	}
 
