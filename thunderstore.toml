@@ -24,4 +24,4 @@ target = ""
 [publish]
 repository = "https://thunderstore.io"
 communities = ["v-rising"]
-categories = ["server"]
+categories = []
