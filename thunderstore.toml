@@ -13,7 +13,7 @@ containsNsfwContent = false
 BepInEx-BepInExPack_V_Rising = "1.0.0"
 
 [build]
-icon = "./images/logo.png"
+icon = "./images/logo_256.png"
 readme = "./README.md"
 outdir = "./build"
 
