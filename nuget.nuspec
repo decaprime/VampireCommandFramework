@@ -13,11 +13,11 @@
     <readme>docs\README.md</readme>
     <repository type="git" url="https://github.com/decaprime/VampireCommandFramework.git" />
     <dependencies>
-      <group targetFramework="netstandard2.1"/>
+      <group targetFramework="net6.0"/>
     </dependencies>
   </metadata>
   <files>
-    <file src="VCF.Core\bin\Release\netstandard2.1\*.*" target="lib\netstandard2.1" />
+    <file src="VCF.Core\bin\Release\net6.0\*.*" target="lib\net6.0" />
     <file src="images\logo.png" target="images\" />
     <file src="README.md" target="docs\README.md" />
   </files>
