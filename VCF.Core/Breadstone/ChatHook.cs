@@ -48,8 +48,16 @@ public static class ChatMessageSystem_Patch
 
 				else if (result != CommandResult.Unmatched)
 				{
-					__instance.EntityManager.AddComponent<DestroyTag>(entity);
-					return false;
+					//__instance.EntityManager.AddComponent<DestroyTag>(entity);
+
+					var whisperChatEvent = new ChatMessageEvent()
+					{
+						MessageText = chatEventData.MessageText,
+						MessageType = ChatMessageType.Whisper,
+						ReceiverEntity =  chatEventData.ReceiverEntity
+					};
+					__instance.EntityManager.SetComponentData(entity, whisperChatEvent);
+					return true;
 				}
 
 			}

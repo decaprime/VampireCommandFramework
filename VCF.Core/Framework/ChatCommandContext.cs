@@ -33,12 +33,12 @@ public class ChatCommandContext : ICommandContext
 		Event = e;
 	}
 
-	public User User => Event?.User;
+	public User User => Event.User;
 
 	public IServiceProvider Services { get; }
 
-	public string Name => User?.CharacterName.ToString();
-	public bool IsAdmin => User?.IsAdmin ?? false;
+	public string Name => User.CharacterName.ToString();
+	public bool IsAdmin => User.IsAdmin;
 	public void Reply(string v)
 	{
 		ServerChatUtils.SendSystemMessageToClient(VWorld.Server.EntityManager, User, v);

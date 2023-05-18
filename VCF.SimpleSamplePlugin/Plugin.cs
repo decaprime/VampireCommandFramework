@@ -1,8 +1,6 @@
 ﻿using BepInEx;
-using BepInEx.IL2CPP;
+using BepInEx.Unity.IL2CPP;
 using VampireCommandFramework;
-using VampireCommandFramework.Registry;
-using PluginInfo = VCF.SimpleSamplePlugin.MyPluginInfo;
 
 namespace VCF.SimpleSamplePlugin;
 

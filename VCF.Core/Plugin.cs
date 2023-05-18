@@ -1,6 +1,13 @@
 ﻿using BepInEx;
 using BepInEx.IL2CPP;
+using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
+using ProjectM;
+using ProjectM.Audio;
+using System;
+using System.Reflection;
+using Unity.Entities;
+using Unity.Transforms;
 using VampireCommandFramework.Basics;
 
 namespace VampireCommandFramework;

@@ -1,14 +1,6 @@
-﻿using Cpp2IL.Core.Analysis.Actions.x86.Important;
-using FakeItEasy;
+﻿using FakeItEasy;
 using NUnit.Framework;
-using ProjectM.Scripting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using VampireCommandFramework;
-using static Il2CppSystem.Globalization.HebrewNumber;
 
 namespace VCF.Tests;
 public class CommandArgumentConverterTests

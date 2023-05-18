@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using BepInEx.Configuration;
 using VampireCommandFramework.Common;
+using BepInEx.Unity.IL2CPP;
 
 namespace VampireCommandFramework.Basics;
 

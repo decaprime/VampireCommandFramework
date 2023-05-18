@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>netstandard2.1</TargetFramework>
+		<TargetFramework>net6.0</TargetFramework>
 		<AssemblyName>SimpleSamplePlugin</AssemblyName>
 		<Description>Simple usage of COmmands</Description>
 		<Version>1.0.0</Version>
@@ -9,11 +9,11 @@
 		<LangVersion>latest</LangVersion>
 		<IsPackable>false</IsPackable>
 	</PropertyGroup>
-
 	<ItemGroup>
-		<PackageReference Include="BepInEx.IL2CPP" Version="6.0.0-*" IncludeAssets="compile" />
-		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
-		<PackageReference Include="VRising.Unhollowed.Client" Version="0.5.*"/>
+		<PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be*" IncludeAssets="compile" />
+		<PackageReference Include="BepInEx.Core" Version="6.0.0-be*" IncludeAssets="compile" />
+		<PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
+		<PackageReference Include="VRising.Unhollowed.Client" Version="0.6.0.571080001" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\VCF.Core\VCF.Core.csproj" />

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>netstandard2.1</TargetFramework>
+		<TargetFramework>net6.0</TargetFramework>
 		<AssemblyName>VampireCommandFramework</AssemblyName>
 		<Description>My first plugin</Description>
 		<Version>0.0.999</Version>
@@ -19,10 +19,11 @@
 		<Copy SourceFiles="$(OutDir)\VampireCommandFramework.dll" DestinationFolder="$(SolutionDir)/dist" />
 	</Target>
 	<ItemGroup>
-		<PackageReference Include="BepInEx.IL2CPP" Version="6.0.0-*" IncludeAssets="compile" />
+		<PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be*" IncludeAssets="compile" />
+		<PackageReference Include="BepInEx.Core" Version="6.0.0-be*" IncludeAssets="compile" />
 		<PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
+		<PackageReference Include="VRising.Unhollowed.Client" Version="0.6.0.571080001" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
-		<PackageReference Include="VRising.Unhollowed.Client" Version="0.5.42584" />
 	</ItemGroup>
 
 	<ItemGroup>
