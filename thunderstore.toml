@@ -24,6 +24,4 @@ target = ""
 [publish]
 repository = "https://v-rising.thunderstore.io"
 communities = ["v-rising"]
-
-[publish.categories]
-v-rising = ["gloomrot-update", "mods", "server"]
+categories = ["gloomrot-update", "mods", "server"]
