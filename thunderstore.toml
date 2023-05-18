@@ -22,6 +22,8 @@ source = "./dist"
 target = ""
 
 [publish]
-repository = "https://thunderstore.io"
+repository = "https://v-rising.thunderstore.io"
 communities = ["v-rising"]
-categories = ["Gloomrot Update"]
+
+[publish.categories]
+v-rising = ["gloomrot-update", "mods", "server"]
