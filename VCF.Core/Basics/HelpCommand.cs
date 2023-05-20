@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using VampireCommandFramework.Common;
 using VampireCommandFramework.Registry;
 
@@ -12,6 +13,8 @@ namespace VampireCommandFramework.Basics;
 
 internal static class HelpCommands
 {
+	private static readonly Regex _trailingLongDashRegex = new Regex(@"-\d+$");
+
 	[Command("help-legacy", description: "Passes through a .help command that is compatible with other mods that don't use VCF.")]
 	public static void HelpLegacy(ICommandContext ctx, string search = null) => ctx.SysReply($"Attempting compatible .help {search} for non-VCF mods.");
 
@@ -21,7 +24,7 @@ internal static class HelpCommands
 		// If search is specified first look for matching assembly, then matching command
 		if (!string.IsNullOrEmpty(search))
 		{
-			var foundAssembly = CommandRegistry.AssemblyCommandMap.FirstOrDefault(x => string.Equals(search, x.Key.GetName().Name, StringComparison.OrdinalIgnoreCase));
+			var foundAssembly = CommandRegistry.AssemblyCommandMap.FirstOrDefault(x => x.Key.GetName().Name.StartsWith(search, StringComparison.OrdinalIgnoreCase));
 			if (foundAssembly.Value != null)
 			{
 				StringBuilder sb = new();
@@ -64,10 +67,12 @@ internal static class HelpCommands
 			}
 			ctx.SysPaginatedReply(sb);
 		}
-
+		
 		void PrintAssemblyHelp(ICommandContext ctx, KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb)
 		{
 			var name = assembly.Key.GetName().Name;
+			name = _trailingLongDashRegex.Replace(name, "");
+
 			sb.AppendLine($"Commands from {name.Medium().Color(Color.Primary)}:".Underline());
 			var commands = assembly.Value.Keys.Where(c => CommandRegistry.CanCommandExecute(ctx, c));
 

@@ -386,11 +386,15 @@ public static class CommandRegistry
 
 	internal static Dictionary<Assembly, Dictionary<CommandMetadata, List<string>>> AssemblyCommandMap { get; } = new();
 
+	public static void UnregisterAssembly() => UnregisterAssembly(Assembly.GetCallingAssembly());
+
 	public static void UnregisterAssembly(Assembly assembly)
 	{
 		foreach (var type in assembly.DefinedTypes)
 		{
 			_cache.RemoveCommandsFromType(type);
 		}
+
+		AssemblyCommandMap.Remove(assembly);
 	}
 }
