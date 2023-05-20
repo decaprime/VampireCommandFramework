@@ -13,7 +13,7 @@
 		<PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be*" IncludeAssets="compile" />
 		<PackageReference Include="BepInEx.Core" Version="6.0.0-be*" IncludeAssets="compile" />
 		<PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
-		<PackageReference Include="VRising.Unhollowed.Client" Version="0.6.0.571080001" />
+		<PackageReference Include="VRising.Unhollowed.Client" Version="0.6.1.*" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\VCF.Core\VCF.Core.csproj" />
