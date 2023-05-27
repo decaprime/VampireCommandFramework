@@ -230,15 +230,44 @@ public static class CommandRegistry
 		}
 
 		HandleAfterExecute(ctx, command);
-
+		
 		return CommandResult.Success;
 	}
+
+	public static void UnregisterConverter(Type converter)
+	{
+		if(!IsGenericConverterContext(converter) && !IsSpecificConverterContext(converter))
+		{
+			return;
+		}
+
+		var args = converter.BaseType.GenericTypeArguments;
+		var convertFrom = args.FirstOrDefault();
+		if (convertFrom == null)
+		{
+			Log.Warning($"Could not resolve converter type {converter.Name}");
+			return;
+		}
+		
+		if (_converters.ContainsKey(convertFrom))
+		{
+			_converters.Remove(convertFrom);
+			Log.Info($"Unregistered converter {converter.Name}");
+		}
+		else
+		{
+			Log.Warning($"Call to UnregisterConverter for a converter that was not registered. Type: {converter.Name}");
+		}
+	}
+
+	private static bool IsGenericConverterContext(Type rootType) => rootType.BaseType.Name == typeof(CommandArgumentConverter<>).Name;
+	private static bool IsSpecificConverterContext(Type rootType) => rootType.BaseType.Name == typeof(CommandArgumentConverter<,>).Name;
 
 	public static void RegisterConverter(Type converter)
 	{
 		// check base type
-		var isGenericContext = converter.BaseType.Name == typeof(CommandArgumentConverter<>).Name;
-		var isSpecificContext = converter.BaseType.Name == typeof(CommandArgumentConverter<,>).Name;
+		var isGenericContext = IsGenericConverterContext(converter);
+		var isSpecificContext = IsSpecificConverterContext(converter);
 
 		if (!isGenericContext && !isSpecificContext)
 		{
@@ -393,6 +422,10 @@ public static class CommandRegistry
 		foreach (var type in assembly.DefinedTypes)
 		{
 			_cache.RemoveCommandsFromType(type);
+			UnregisterConverter(type);
+			// TODO: There's a lot of nasty cases involving cross mod converters that need testing
+			// as of right now the guidance should be to avoid depending on converters from a different mod
+			// especially if you're hot reloading either.
 		}
 
 		AssemblyCommandMap.Remove(assembly);

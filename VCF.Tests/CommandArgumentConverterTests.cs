@@ -86,6 +86,32 @@ public class CommandArgumentConverterTests
 	}
 
 	[Test]
+	public void UnregisterConverter_NotRegistered_Success()
+	{
+		CommandRegistry.UnregisterConverter(typeof(SpecificContextConverter));
+		CommandRegistry.UnregisterConverter(typeof(GenericContextConverter));
+	}
+
+	[Test]
+	public void UnregisterConverter_Fails_WhenNotAConverter()
+	{
+		CommandRegistry.UnregisterConverter(typeof(Version));
+	}
+
+	[Test]
+	public void UnregisterConverter_RemovesConverter()
+	{
+		CommandRegistry.RegisterConverter(typeof(GenericContextConverter));
+		CommandRegistry.RegisterCommandType(typeof(GenericContextTestCommands));
+		
+		var ctx = new SecondaryContext();
+		Assert.That(CommandRegistry.Handle(ctx, ".test something"), Is.EqualTo(CommandResult.Success));
+
+		CommandRegistry.UnregisterConverter(typeof(GenericContextConverter));
+		Assert.That(CommandRegistry.Handle(ctx, ".test something"), Is.EqualTo(CommandResult.UsageError));
+	}
+
+	[Test]
 	public void CanConvert_GenericContext()
 	{
 		CommandRegistry.RegisterConverter(typeof(GenericContextConverter));
@@ -122,7 +148,7 @@ public class CommandArgumentConverterTests
 		CommandRegistry.RegisterCommandType(typeof(GenericContextTestCommands));
 		var ctx = new AssertReplyContext();
 
-		Format.Mode = Format.FormatMode.None;		
+		Format.Mode = Format.FormatMode.None;
 		Assert.That(CommandRegistry.Handle(ctx, ".test something"), Is.EqualTo(CommandResult.InternalError));
 		ctx.AssertInternalError();
 	}
