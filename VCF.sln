@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VCF.SimpleSamplePlugin", "V
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VCF.Tests", "VCF.Tests\VCF.Tests.csproj", "{05FC95C7-6679-48C8-8633-FB27CC94A43F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VCF.Core", "VCF.Core\VCF.Core.csproj", "{34DBB564-4F68-428D-8597-1511606C672D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VCF.Core", "VCF.Core\VCF.Core.csproj", "{34DBB564-4F68-428D-8597-1511606C672D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
