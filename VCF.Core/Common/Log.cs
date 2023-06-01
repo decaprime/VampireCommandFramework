@@ -3,9 +3,9 @@ using System;
 
 namespace VampireCommandFramework.Common;
 
-internal static class Log
+public static class Log
 {
-	internal static ManualLogSource Instance { get; set; }
+	public static ManualLogSource Instance { get; set; }
 
 	public static void Warning(string s) => LogOrConsole(s, s => Instance.LogWarning(s));
 	public static void Error(string s) => LogOrConsole(s, s => Instance.LogError(s));

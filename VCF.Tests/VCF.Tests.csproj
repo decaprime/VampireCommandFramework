@@ -21,6 +21,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\VampireCommandFrameworkPlugin\VampireCommandFramework.csproj" />
 		<ProjectReference Include="..\VCF.Core\VCF.Core.csproj" />
 	</ItemGroup>
 </Project>
