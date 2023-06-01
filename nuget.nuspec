@@ -17,7 +17,7 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="VCF.Core\bin\Release\net6.0\*.*" target="lib\net6.0" />
+    <file src="VampireCommandFrameworkPlugin\bin\Debug\net6.0\*.*" target="lib\net6.0" />
     <file src="images\logo.png" target="images\" />
     <file src="README.md" target="docs\README.md" />
   </files>
