@@ -28,18 +28,18 @@ internal static class Reload
 	}
 
 	[Command("reload","re", adminOnly:true)]
-	public static void HandleReloadCommand(ChatCommandContext ctx)
+	public static void HandleReloadCommand(ICommandContext ctx)
 	{
 		UnloadPlugins();
 		var loaded = LoadPlugins();
 
 		if (loaded.Count > 0)
 		{
-			ctx.SysReply($"Reloaded {string.Join(", ", loaded)}. See console for details.");
+			ctx.Reply($"Reloaded {string.Join(", ", loaded)}. See console for details.");
 		}
 		else
 		{
-			ctx.SysReply($"Did not reload any plugins because no reloadable plugins were found. Check the console for more details.");
+			ctx.Reply($"Did not reload any plugins because no reloadable plugins were found. Check the console for more details.");
 		}
 	}
 
@@ -106,6 +106,12 @@ internal static class Reload
 				_loadedPlugins.Add(plugin);
 				plugin.Load();
 				loaded.Add(metadata.Name);
+
+				// ensure initialize hook runs even if we reload far after initialization is already done
+				if (OnInitialize.HasInitialized && plugin is IRunOnInitialized runOnInitialized)
+				{
+					runOnInitialized.OnGameInitialized();
+				}
 				
 				Log.Info($"Loaded plugin {pluginType.FullName}");
 			}

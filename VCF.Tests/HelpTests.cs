@@ -37,7 +37,7 @@ public class HelpTests
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".help"), Is.EqualTo(CommandResult.Success));
 		AnyCtx.AssertReply($"""
 			[vcf] Listing all commands
-			Commands from VampireCommandFramework:
+			Commands from VCF:
 			.help-legacy [search=]
 			.help [search=]
 			""");

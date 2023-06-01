@@ -1,7 +1,4 @@
-﻿using RootMotion.FinalIK;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Text;
 
 namespace VampireCommandFramework.Common;
 
