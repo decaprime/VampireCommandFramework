@@ -37,7 +37,7 @@ public class HelpTests
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".help"), Is.EqualTo(CommandResult.Success));
 		AnyCtx.AssertReply($"""
 			[vcf] Listing all commands
-			Commands from VCF:
+			Commands from VCF.Core:
 			.help-legacy [search=]
 			.help [search=]
 			""");
@@ -46,9 +46,9 @@ public class HelpTests
 	[Test]
 	public void HelpCommand_Help_ListsAssemblyMatch()
 	{
-		Assert.That(CommandRegistry.Handle(AnyCtx, ".help VampireCommandFramework"), Is.EqualTo(CommandResult.Success));
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help VCF.Core"), Is.EqualTo(CommandResult.Success));
 		AnyCtx.AssertReply($"""
-			[vcf] Commands from VampireCommandFramework:
+			[vcf] Commands from VCF.Core:
 			.help-legacy [search=]
 			.help [search=]
 			""");
