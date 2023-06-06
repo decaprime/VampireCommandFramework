@@ -37,17 +37,17 @@ jobs:
         with:
           additionalArguments: '/updateprojectfiles /overrideconfig "mode=Mainline"'
 
-      - name: Build
-        run: dotnet build . -p:Version=$GitVersion_SemVer
+      - name: Build (Release)
+        run: dotnet build . --configuration Release -p:Version=$GitVersion_SemVer
 
       - name: Run Unit Tests
         run: dotnet test
 
       - name: Package Nuget
-        run: dotnet pack -p:Version=$GitVersion_SemVer --output ./nuget
+        run: dotnet pack VCF.Core --configuration Release -p:Version=$GitVersion_SemVer --output ./nuget
       
       - name: Upload a Build Artifact
-        if: ${{ !env.ACT }}
+        if: ${{ !env.ACT && github.event_name == 'push' }}
         uses: actions/upload-artifact@v3.1.0
         with:
           path: ./nuget
@@ -62,7 +62,7 @@ jobs:
         with:
           body: Automatic pre-release of ${{ env.GitVersion_SemVer }} for ${{ env.GitVersion_ShortSha }}
           name: v${{ env.GitVersion_SemVer }}
-          files: ./VampireCommandFrameworkPlugin/bin/Debug/net6.0/*.dll
+          files: ./VCF.Core/bin/Debug/net6.0/VampireCommandFramework.dll
           fail_on_unmatched_files: true
           prerelease: true
           tag_name: v${{ env.GitVersion_SemVer }}
