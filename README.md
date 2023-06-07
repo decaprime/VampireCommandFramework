@@ -2,13 +2,6 @@
 # VampireCommandFramework
 ![](https://github.com/decaprime/VampireCommandFramework/raw/main/images/logo_128.png) Framework for V Rising mod developers to easily build commands.
 
-## `BETA VERSION WARNING`
-#### Please coordinate shipping plugins with this framework with me as I may still need to make breaking changes to the API.
-
-Please feel free to ask any questions to [@deca#9999](https://discord.com/users/115195745782464512) on [V Rising Modding Discord](https://discord.gg/vrisingmods)
-
----
-
 # For Server Operators
 
 This plugin should be installed into the `BepInEx/plugins` folder and be kept up to date. It is required by other plugins for commands. In the future there will be more universal configurations for server operators to manage commands across plugins.
@@ -61,3 +54,6 @@ All commands execute through the same pipeline and through a series of middlewar
   - Localization
   - Custom help text and descriptions
   - Disabling commands entirely
+
+## Help
+Please feel free to direct questions to @decaprime on discord at the [V Rising Modding Discord](https://vrisingmods.com/discord)
