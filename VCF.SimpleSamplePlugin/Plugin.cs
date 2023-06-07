@@ -4,9 +4,9 @@ using VampireCommandFramework;
 
 namespace VCF.SimpleSamplePlugin;
 
-[BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
+[BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
 [BepInDependency("gg.deca.VampireCommandFramework")]
-[VampireCommandFramework.Breadstone.Reloadable]
+[Bloodstone.API.Reloadable]
 internal class Plugin : BasePlugin
 {
 	public override void Load()
