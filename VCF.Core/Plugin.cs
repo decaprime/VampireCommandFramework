@@ -33,17 +33,10 @@ internal class Plugin : BasePlugin
 
 		CommandRegistry.RegisterCommandType(typeof(Basics.HelpCommands));
 		CommandRegistry.RegisterCommandType(typeof(Basics.BepInExConfigCommands));
-		CommandRegistry.RegisterCommandType(typeof(Breadstone.Reload));
 
 
 		IL2CPPChainloader.Instance.Plugins.TryGetValue(PluginInfo.PLUGIN_GUID, out var info);
 		Log.LogMessage($"VCF Loaded: {info?.Metadata.Version}");
-
-
-		// Attempting to speed up Gloomrot compatibility development, server reload
-		// functionality was taken from Wetstone by molenzwiebel. Should be compatible with Wetstone as well.
-		// Please don't rely on this persisting or use for production.
-		Breadstone.Reload.Initialize("BepInEx/VCF-Reloadable-Debugging");
 	}
 
 	public override bool Unload()

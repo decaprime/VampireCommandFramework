@@ -11,7 +11,7 @@ using static VampireCommandFramework.Format;
 
 namespace VampireCommandFramework.Basics;
 
-public static class HelpCommands
+internal static class HelpCommands
 {
 	private static readonly Regex _trailingLongDashRegex = new Regex(@"-\d+$");
 

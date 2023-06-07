@@ -3,13 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.3.32519.111
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VampireCommandFramework", "VampireCommandFrameworkPlugin\VampireCommandFramework.csproj", "{54C82B43-DB9B-4E83-8E43-79FFE691CE85}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VCF.Core", "VCF.Core\VCF.Core.csproj", "{54C82B43-DB9B-4E83-8E43-79FFE691CE85}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VCF.SimpleSamplePlugin", "VCF.SimpleSamplePlugin\VCF.SimpleSamplePlugin.csproj", "{85CE497F-326B-4E35-97FA-01439C4F8CA6}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VCF.Tests", "VCF.Tests\VCF.Tests.csproj", "{05FC95C7-6679-48C8-8633-FB27CC94A43F}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VCF.Core", "VCF.Core\VCF.Core.csproj", "{34DBB564-4F68-428D-8597-1511606C672D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,10 +27,6 @@ Global
 		{05FC95C7-6679-48C8-8633-FB27CC94A43F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{05FC95C7-6679-48C8-8633-FB27CC94A43F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{05FC95C7-6679-48C8-8633-FB27CC94A43F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{34DBB564-4F68-428D-8597-1511606C672D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{34DBB564-4F68-428D-8597-1511606C672D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{34DBB564-4F68-428D-8597-1511606C672D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{34DBB564-4F68-428D-8597-1511606C672D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

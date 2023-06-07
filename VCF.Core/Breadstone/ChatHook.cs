@@ -8,6 +8,7 @@ using System;
 namespace VampireCommandFramework.Breadstone;
 
 [HarmonyPriority(200)]
+[HarmonyBefore("gg.deca.Bloodstone")]
 [HarmonyPatch(typeof(ChatMessageSystem), nameof(ChatMessageSystem.OnUpdate))]
 public static class ChatMessageSystem_Patch
 {
@@ -49,14 +50,7 @@ public static class ChatMessageSystem_Patch
 				else if (result != CommandResult.Unmatched)
 				{
 					//__instance.EntityManager.AddComponent<DestroyTag>(entity);
-
-					var whisperChatEvent = new ChatMessageEvent()
-					{
-						MessageText = chatEventData.MessageText,
-						MessageType = ChatMessageType.Whisper,
-						ReceiverEntity =  chatEventData.ReceiverEntity
-					};
-					__instance.EntityManager.SetComponentData(entity, whisperChatEvent);
+					VWorld.Server.EntityManager.DestroyEntity(entity);
 					return true;
 				}
 
