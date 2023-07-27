@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
 		<AssemblyName>VampireCommandFramework</AssemblyName>
-		<Description>My first plugin</Description>
+		<Description>Framework for commands in V Rising</Description>
 		<Version>0.0.999</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
@@ -13,14 +13,15 @@
 		<PackageId>VampireCommandFramework</PackageId>
 		<RootNamespace>VampireCommandFramework</RootNamespace>
 		<Authors>deca</Authors>
+		<LangVersion>preview</LangVersion>
 	</PropertyGroup>
 	  <!-- Copy VampireCommandFramework.dll to /dist -->
 	<Target Name="Thunderstore Copy to Dist" AfterTargets="AfterBuild" Condition=" '$(Configuration)' == 'Release'">
 		<Copy SourceFiles="$(OutDir)\VampireCommandFramework.dll" DestinationFolder="$(SolutionDir)/dist" />
 	</Target>
 	<ItemGroup>
-		<PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be*" IncludeAssets="compile" />
-		<PackageReference Include="BepInEx.Core" Version="6.0.0-be*" IncludeAssets="compile" />
+		<PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.668" IncludeAssets="compile" />
+		<PackageReference Include="BepInEx.Core" Version="6.0.0-be.668" IncludeAssets="compile" />
 		<PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
 		<PackageReference Include="VRising.Unhollowed.Client" Version="0.6.5.*" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />

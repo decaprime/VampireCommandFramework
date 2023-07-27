@@ -15,6 +15,27 @@ public class HelpTests
 {
 	private AssertReplyContext AnyCtx;
 
+	record SomeType();
+
+	static readonly SomeType returnedFromConverter = new();
+
+	class SomeTypeConverter : CommandArgumentConverter<SomeType>, IConverterUsage
+	{
+		public string Usage => "TEST-SENTINEL";
+		public override SomeType Parse(ICommandContext ctx, string input) => returnedFromConverter;
+	}
+
+	enum SomeEnum { A, B, C }
+
+	class HelpTestCommands
+	{
+		[Command("test-help")]
+		public void TestHelp(ICommandContext ctx, SomeEnum someEnum, SomeType? someType = null)
+		{
+
+		}
+	}
+
 	[SetUp]
 	public void Setup()
 	{
@@ -66,12 +87,29 @@ public class HelpTests
 	}
 
 	[Test]
+	public void HelpCommand_Help_ListAll_IncludesNewCommands()
+	{
+		CommandRegistry.RegisterConverter(typeof(SomeTypeConverter));
+		CommandRegistry.RegisterCommandType(typeof(HelpTestCommands));
+
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help"), Is.EqualTo(CommandResult.Success));
+		AnyCtx.AssertReply($"""
+			[vcf] Listing all commands
+			Commands from VampireCommandFramework:
+			.help-legacy [search=]
+			.help [search=]
+			Commands from VCF.Tests:
+			.test-help (someEnum) [someType=]
+			""");
+	}
+
+	[Test]
 	public void GenerateHelpText_UsageSpecified()
 	{
 		var (commandName, usage, description) = Any.ThreeStrings();
 
 		var command = new CommandMetadata(new CommandAttribute(commandName, usage: usage, description: description), null, null, null, null, null, null);
-		var text = HelpCommands.GenerateHelpText(command);
+		var text = HelpCommands.PrintShortHelp(command);
 		Assert.That(text, Is.EqualTo($".{commandName} {usage}"));
 	}
 
@@ -85,7 +123,7 @@ public class HelpTests
 
 		var command = new CommandMetadata(new CommandAttribute(commandName, usage: null, description: description), null, null, new[] { param }, null, null, null);
 
-		var text = HelpCommands.GenerateHelpText(command);
+		var text = HelpCommands.PrintShortHelp(command);
 
 		Assert.That(text, Is.EqualTo($".{commandName} ({paramName})"));
 	}
@@ -103,8 +141,32 @@ public class HelpTests
 
 		var command = new CommandMetadata(new CommandAttribute(commandName, usage: null, description: description), null, null, new[] { param }, null, null, null);
 
-		var text = HelpCommands.GenerateHelpText(command);
+		var text = HelpCommands.PrintShortHelp(command);
 
 		Assert.That(text, Is.EqualTo($".{commandName} [{paramName}={paramValue}]"));
+	}
+
+	[Test]
+	public void FullHelp_Usage_Includes_IConverterUsage()
+	{
+		CommandRegistry.RegisterConverter(typeof(SomeTypeConverter));
+		CommandRegistry.RegisterCommandType(typeof(HelpTestCommands));
+
+		var ctx = new AssertReplyContext();
+		Format.Mode = Format.FormatMode.None;
+		Assert.That(CommandRegistry.Handle(ctx, ".help test-help"), Is.EqualTo(CommandResult.Success));
+		ctx.AssertReplyContains("SomeType: TEST-SENTINEL");
+	}
+	
+	[Test]
+	public void FullHelp_Usage_Includes_Enum_Values()
+	{
+		CommandRegistry.RegisterConverter(typeof(SomeTypeConverter));
+		CommandRegistry.RegisterCommandType(typeof(HelpTestCommands));
+
+		var ctx = new AssertReplyContext();
+		Format.Mode = Format.FormatMode.None;
+		Assert.That(CommandRegistry.Handle(ctx, ".help test-help"), Is.EqualTo(CommandResult.Success));
+		ctx.AssertReplyContains("SomeEnum Values: A, B, C");
 	}
 }

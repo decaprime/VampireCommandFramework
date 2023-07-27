@@ -12,7 +12,10 @@ public static class CommandRegistry
 {
 	internal const string DEFAULT_PREFIX = ".";
 	private static CommandCache _cache = new();
-	private static Dictionary<Type, (object instance, MethodInfo tryParse, Type contextType)> _converters = new();
+	/// <summary>
+	/// From converting type to (object instance, MethodInfo tryParse, Type contextType)
+	/// </summary>
+	internal static Dictionary<Type, (object instance, MethodInfo tryParse, Type contextType)> _converters = new();
 
 	internal static void Reset()
 	{
@@ -30,10 +33,10 @@ public static class CommandRegistry
 
 	internal static bool CanCommandExecute(ICommandContext ctx, CommandMetadata command)
 	{
-		Log.Debug($"Executing {Middlewares.Count} CanHandle Middlwares:");
+		// Log.Debug($"Executing {Middlewares.Count} CanHandle Middlwares:");
 		foreach (var middleware in Middlewares)
 		{
-			Log.Debug($"\t{middleware.GetType().Name}");
+			// Log.Debug($"\t{middleware.GetType().Name}");
 			try
 			{
 				if (!middleware.CanExecute(ctx, command.Attribute, command.Method))
@@ -76,7 +79,7 @@ public static class CommandRegistry
 
 			foreach (var possible in matchedCommand.PartialMatches)
 			{
-				ctx.SysReply(Basics.HelpCommands.GenerateHelpText(possible));
+				ctx.SysReply(Basics.HelpCommands.PrintShortHelp(possible));
 			}
 
 			return CommandResult.UsageError;
@@ -123,6 +126,7 @@ public static class CommandRegistry
 			var param = command.Parameters[i];
 			var arg = args[i];
 
+			// Custom Converter
 			if (_converters.TryGetValue(param.ParameterType, out var customConverter))
 			{
 				var (converter, convertMethod, converterContextType) = customConverter;
@@ -242,13 +246,13 @@ public static class CommandRegistry
 		}
 
 		HandleAfterExecute(ctx, command);
-		
+
 		return CommandResult.Success;
 	}
 
 	public static void UnregisterConverter(Type converter)
 	{
-		if(!IsGenericConverterContext(converter) && !IsSpecificConverterContext(converter))
+		if (!IsGenericConverterContext(converter) && !IsSpecificConverterContext(converter))
 		{
 			return;
 		}
@@ -260,7 +264,7 @@ public static class CommandRegistry
 			Log.Warning($"Could not resolve converter type {converter.Name}");
 			return;
 		}
-		
+
 		if (_converters.ContainsKey(convertFrom))
 		{
 			_converters.Remove(convertFrom);
@@ -272,8 +276,8 @@ public static class CommandRegistry
 		}
 	}
 
-	private static bool IsGenericConverterContext(Type rootType) => rootType.BaseType.Name == typeof(CommandArgumentConverter<>).Name;
-	private static bool IsSpecificConverterContext(Type rootType) => rootType.BaseType.Name == typeof(CommandArgumentConverter<,>).Name;
+	internal static bool IsGenericConverterContext(Type rootType) => rootType.BaseType.Name == typeof(CommandArgumentConverter<>).Name;
+	internal static bool IsSpecificConverterContext(Type rootType) => rootType.BaseType.Name == typeof(CommandArgumentConverter<,>).Name;
 
 	public static void RegisterConverter(Type converter)
 	{
