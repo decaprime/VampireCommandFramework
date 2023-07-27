@@ -164,13 +164,25 @@ public static class CommandRegistry
 					return CommandResult.InternalError;
 				}
 			}
+			// Default Converter
 			else
 			{
-				// default convertet
-				var builtinConverter = TypeDescriptor.GetConverter(param.ParameterType);
+				var defaultConverter = TypeDescriptor.GetConverter(param.ParameterType);
 				try
 				{
-					commandArgs[i + 1] = builtinConverter.ConvertFromInvariantString(arg);
+					var val = defaultConverter.ConvertFromInvariantString(arg);
+
+					// ensure enums are valid for #16
+					if (defaultConverter is EnumConverter)
+					{
+						if (!Enum.IsDefined(param.ParameterType, val))
+						{
+							ctx.Reply($"<color=red>[error]</color> Invalid value {val} for {param.ParameterType.Name}");
+							return CommandResult.UsageError;
+						}
+					}
+					
+					commandArgs[i + 1] = val;
 				}
 				catch (Exception e)
 				{
