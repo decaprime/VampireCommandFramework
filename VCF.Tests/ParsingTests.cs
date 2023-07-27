@@ -78,6 +78,14 @@ public class ParsingTests
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse color Brown"), Is.EqualTo(CommandResult.Success));
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse color Purple"), Is.EqualTo(CommandResult.UsageError));
 	}
+	
+	[Test]
+	public void CanCallWithEnumValues()
+	{
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse color 1"), Is.EqualTo(CommandResult.Success));
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse color 2"), Is.EqualTo(CommandResult.Success));
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".horse color 4"), Is.EqualTo(CommandResult.UsageError));
+	}
 
 	[Test]
 	public void CommandsCanBeSubstrings()
