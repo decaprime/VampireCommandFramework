@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
 		<AssemblyName>VampireCommandFramework</AssemblyName>
-		<Description>My first plugin</Description>
+		<Description>Framework for commands in V Rising</Description>
 		<Version>0.0.999</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
