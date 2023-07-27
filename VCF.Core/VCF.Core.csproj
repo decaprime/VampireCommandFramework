@@ -13,6 +13,8 @@
 		<PackageId>VampireCommandFramework</PackageId>
 		<RootNamespace>VampireCommandFramework</RootNamespace>
 		<Authors>deca</Authors>
+		<LangVersion>preview</LangVersion>
+		<EnablePreviewFeatures>true</EnablePreviewFeatures>
 	</PropertyGroup>
 	  <!-- Copy VampireCommandFramework.dll to /dist -->
 	<Target Name="Thunderstore Copy to Dist" AfterTargets="AfterBuild" Condition=" '$(Configuration)' == 'Release'">
