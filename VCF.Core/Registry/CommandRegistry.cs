@@ -79,7 +79,7 @@ public static class CommandRegistry
 
 			foreach (var possible in matchedCommand.PartialMatches)
 			{
-				ctx.SysReply(Basics.HelpCommands.GenerateHelpText(possible));
+				ctx.SysReply(Basics.HelpCommands.PrintShortHelp(possible));
 			}
 
 			return CommandResult.UsageError;

@@ -1,15 +1,16 @@
 ﻿using FakeItEasy;
 using NUnit.Framework;
 using VampireCommandFramework;
+using VampireCommandFramework.Basics;
 
 namespace VCF.Tests;
 public class CommandArgumentConverterTests
 {
-	public record SomeType() { readonly string Unique = Any.String(); };
+	record SomeType() { readonly string Unique = Any.String(); };
 
-	public static readonly SomeType ReturnedFromGeneric = new(), ReturnedFromSpecific = new(), DefaultValue = new();
+	static readonly SomeType ReturnedFromGeneric = new(), ReturnedFromSpecific = new(), DefaultValue = new();
 
-	public class GenericContextConverter : CommandArgumentConverter<SomeType>
+	class GenericContextConverter : CommandArgumentConverter<SomeType>
 	{
 		public override SomeType Parse(ICommandContext ctx, string input)
 		{
@@ -17,7 +18,7 @@ public class CommandArgumentConverterTests
 		}
 	}
 
-	public class SpecificContextConverter : CommandArgumentConverter<SomeType, SecondaryContext>
+	class SpecificContextConverter : CommandArgumentConverter<SomeType, SecondaryContext>
 	{
 		public override SomeType Parse(SecondaryContext ctx, string input)
 		{
@@ -25,7 +26,7 @@ public class CommandArgumentConverterTests
 		}
 	}
 
-	public class GenericContextTestCommands
+	class GenericContextTestCommands
 	{
 		[Command("test")]
 		public void TestCommand(ICommandContext ctx, SomeType value) { }
@@ -34,7 +35,7 @@ public class CommandArgumentConverterTests
 		public void TestWithefault(ICommandContext ctx, SomeType value = null) { }
 	}
 
-	public class SecondaryContext : ICommandContext
+	internal class SecondaryContext : ICommandContext
 	{
 		public IServiceProvider Services => throw new NotImplementedException();
 
@@ -103,7 +104,7 @@ public class CommandArgumentConverterTests
 	{
 		CommandRegistry.RegisterConverter(typeof(GenericContextConverter));
 		CommandRegistry.RegisterCommandType(typeof(GenericContextTestCommands));
-		
+
 		var ctx = new SecondaryContext();
 		Assert.That(CommandRegistry.Handle(ctx, ".test something"), Is.EqualTo(CommandResult.Success));
 
@@ -163,5 +164,4 @@ public class CommandArgumentConverterTests
 		Assert.That(CommandRegistry.Handle(ctx, ".test-default"), Is.EqualTo(CommandResult.Success));
 		Assert.That(CommandRegistry.Handle(ctx, ".test-default something"), Is.EqualTo(CommandResult.Success));
 	}
-
 }

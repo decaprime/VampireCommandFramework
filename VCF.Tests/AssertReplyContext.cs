@@ -27,6 +27,11 @@ public class AssertReplyContext : ICommandContext
 	{
 		Assert.That(_sb.ToString().TrimEnd(Environment.NewLine.ToCharArray()), Is.EqualTo(expected));
 	}
+	public void AssertReplyContains(string expected)
+	{
+		var repliedText = _sb.ToString().TrimEnd(Environment.NewLine.ToCharArray());
+		Assert.That(repliedText.Contains(expected), Is.True, $"Expected {expected} to be contained in replied: {repliedText}");
+	}
 
 	public void AssertInternalError()
 	{

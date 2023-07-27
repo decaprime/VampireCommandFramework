@@ -41,7 +41,7 @@ internal static class HelpCommands
 					|| x.Value.Contains(search, StringComparer.InvariantCultureIgnoreCase)
 				);
 
-				individualResults.Where(kvp => CommandRegistry.CanCommandExecute(ctx, kvp.Key));
+				individualResults = individualResults.Where(kvp => CommandRegistry.CanCommandExecute(ctx, kvp.Key));
 
 				if (!individualResults.Any())
 				{
@@ -51,7 +51,7 @@ internal static class HelpCommands
 				var sb = new StringBuilder();
 				foreach (var command in individualResults)
 				{
-					PrintCommandHelp(command.Key, command.Value, sb);
+					GenerateFullHelp(command.Key, command.Value, sb);
 				}
 
 				ctx.SysPaginatedReply(sb);
@@ -67,7 +67,7 @@ internal static class HelpCommands
 			}
 			ctx.SysPaginatedReply(sb);
 		}
-		
+
 		void PrintAssemblyHelp(ICommandContext ctx, KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb)
 		{
 			var name = assembly.Key.GetName().Name;
@@ -78,20 +78,37 @@ internal static class HelpCommands
 
 			foreach (var command in commands)
 			{
-				sb.AppendLine(GenerateHelpText(command));
+				sb.AppendLine(PrintShortHelp(command));
 			}
 		}
 
-		void PrintCommandHelp(CommandMetadata command, List<string> aliases, StringBuilder sb)
+		void GenerateFullHelp(CommandMetadata command, List<string> aliases, StringBuilder sb)
 		{
-
 			sb.AppendLine($"{B(command.Attribute.Name)} ({command.Attribute.Id}) {command.Attribute.Description}");
-			sb.AppendLine(GenerateHelpText(command));
-			sb.AppendLine($"Aliases: {string.Join(", ", aliases).Italic()}");
+			sb.AppendLine(PrintShortHelp(command));
+			sb.AppendLine($"{B("Aliases").Underline()}: {string.Join(", ", aliases).Italic()}");
+
+			// Automatically Display Enum types
+			var enums = command.Parameters.Select(p => p.ParameterType).Distinct().Where(t => t.IsEnum);
+			foreach (var e in enums)
+			{
+				sb.AppendLine($"{Format.Bold($"{e.Name} Values").Underline()}: {string.Join(", ", Enum.GetNames(e))}");
+			}
+
+			// Check CommandRegistry for types that can be converted and further for IConverterUsage
+			var converters = command.Parameters.Select(p => p.ParameterType).Distinct().Where(p => CommandRegistry._converters.ContainsKey(p));
+			foreach (var c in converters)
+			{
+				var (obj, _, _) = CommandRegistry._converters[c];
+				if (obj is not IConverterUsage) continue;
+				IConverterUsage converterUsage = obj as IConverterUsage;
+
+				sb.AppendLine($"{Format.Bold($"{c.Name}")}: {converterUsage.Usage}");
+			}
 		}
 	}
 
-	internal static string GenerateHelpText(CommandMetadata command)
+	internal static string PrintShortHelp(CommandMetadata command)
 	{
 		var attr = command.Attribute;
 		var groupPrefix = string.IsNullOrEmpty(command.GroupAttribute?.Name) ? string.Empty : $"{command.GroupAttribute.Name} ";
