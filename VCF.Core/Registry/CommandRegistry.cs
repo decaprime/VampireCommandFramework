@@ -276,8 +276,8 @@ public static class CommandRegistry
 		}
 	}
 
-	internal static bool IsGenericConverterContext(Type rootType) => rootType.BaseType.Name == typeof(CommandArgumentConverter<>).Name;
-	internal static bool IsSpecificConverterContext(Type rootType) => rootType.BaseType.Name == typeof(CommandArgumentConverter<,>).Name;
+	internal static bool IsGenericConverterContext(Type rootType) => rootType?.BaseType?.Name == typeof(CommandArgumentConverter<>).Name;
+	internal static bool IsSpecificConverterContext(Type rootType) => rootType?.BaseType?.Name == typeof(CommandArgumentConverter<,>).Name;
 
 	public static void RegisterConverter(Type converter)
 	{
