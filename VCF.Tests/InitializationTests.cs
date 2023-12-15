@@ -39,6 +39,9 @@ public class InitializationTests
 		return mockAssembly;
 	}
 
-	private interface ISomeInterface;
+	private interface ISomeInterface
+	{
+
+	}
 
 }
