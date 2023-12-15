@@ -7,38 +7,38 @@ namespace VCF.Tests;
 
 public class InitializationTests
 {
-    [SetUp]
+	[SetUp]
 	public void Setup()
 	{
 		CommandRegistry.Reset();
 	}
 
-    [TearDown]
+	[TearDown]
 	public void TearDown()
 	{
 		CommandRegistry.Reset();
 	}
 
-    [Test]
-    public void ScanningInterfaceDoesNotCauseException()
-    {
-        Assert.DoesNotThrow(ScanAssemblyContainingInterface);
-    }
+	[Test]
+	public void ScanningInterfaceDoesNotCauseException()
+	{
+		Assert.DoesNotThrow(ScanAssemblyContainingInterface);
+	}
 
-    private void ScanAssemblyContainingInterface()
-    {
-        CommandRegistry.RegisterAll(AssemblyContainingInterface());
-    }
+	private void ScanAssemblyContainingInterface()
+	{
+		CommandRegistry.RegisterAll(AssemblyContainingInterface());
+	}
 
-    private Assembly AssemblyContainingInterface()
-    {
-        var mockAssembly = A.Fake<Assembly>();
-        A.CallTo(() => mockAssembly.GetTypes()).Returns(new Type[]{
-            typeof(ISomeInterface),
-        });
-        return mockAssembly;
-    }
+	private Assembly AssemblyContainingInterface()
+	{
+		var mockAssembly = A.Fake<Assembly>();
+		A.CallTo(() => mockAssembly.GetTypes()).Returns(new Type[]{
+			typeof(ISomeInterface),
+		});
+		return mockAssembly;
+	}
 
-    private interface ISomeInterface;
+	private interface ISomeInterface;
 
 }
