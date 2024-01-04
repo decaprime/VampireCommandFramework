@@ -25,16 +25,23 @@ public class AssertReplyContext : ICommandContext
 
 	public void AssertReply(string expected)
 	{
-		Assert.That(_sb.ToString().TrimEnd(Environment.NewLine.ToCharArray()), Is.EqualTo(expected));
+		Assert.That(RepliedTextLfAndTrimmed(), Is.EqualTo(expected));
 	}
 	public void AssertReplyContains(string expected)
 	{
-		var repliedText = _sb.ToString().TrimEnd(Environment.NewLine.ToCharArray());
+		var repliedText = RepliedTextLfAndTrimmed();
 		Assert.That(repliedText.Contains(expected), Is.True, $"Expected {expected} to be contained in replied: {repliedText}");
 	}
 
 	public void AssertInternalError()
 	{
-		Assert.That(_sb.ToString().TrimEnd(Environment.NewLine.ToCharArray()), Is.EqualTo("[vcf] An internal error has occurred."));
+		Assert.That(RepliedTextLfAndTrimmed(), Is.EqualTo("[vcf] An internal error has occurred."));
+	}
+
+	private string RepliedTextLfAndTrimmed()
+	{
+		return _sb.ToString()
+			.Replace("\r\n", "\n") // LF instead of CRLF for line endings
+			.TrimEnd(Environment.NewLine.ToCharArray());
 	}
 }
