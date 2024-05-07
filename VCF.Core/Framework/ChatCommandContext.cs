@@ -39,8 +39,13 @@ public class ChatCommandContext : ICommandContext
 
 	public string Name => User.CharacterName.ToString();
 	public bool IsAdmin => User.IsAdmin;
+
+	// If a message is longer than this an exception gets thrown converting to FixedString512Bytes
+	static int maxMessageLength = 509;
 	public void Reply(string v)
 	{
+		if(v.Length > maxMessageLength)
+		 	v = v[..maxMessageLength];
 		ServerChatUtils.SendSystemMessageToClient(VWorld.Server.EntityManager, User, v);
 	}
 
