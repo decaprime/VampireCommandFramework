@@ -14,9 +14,9 @@ public static class ChatMessageSystem_Patch
 {
 	public static bool Prefix(ChatMessageSystem __instance)
 	{
-		if (__instance.__ChatMessageJob_entityQuery != null)
+		if (__instance.__query_661171423_0 != null)
 		{
-			NativeArray<Entity> entities = __instance.__ChatMessageJob_entityQuery.ToEntityArray(Allocator.Temp);
+			NativeArray<Entity> entities = __instance.__query_661171423_0.ToEntityArray(Allocator.Temp);
 			foreach (var entity in entities)
 			{
 				var fromData = __instance.EntityManager.GetComponentData<FromCharacter>(entity);
