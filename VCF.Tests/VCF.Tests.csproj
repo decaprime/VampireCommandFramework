@@ -23,10 +23,4 @@
 	<ItemGroup>
 		<ProjectReference Include="..\VCF.Core\VCF.Core.csproj" />
 	</ItemGroup>
-
-	<ItemGroup>
-	  <Reference Include="Unity.Entities">
-	    <HintPath>..\..\interop\Unity.Entities.dll</HintPath>
-	  </Reference>
-	</ItemGroup>
 </Project>
