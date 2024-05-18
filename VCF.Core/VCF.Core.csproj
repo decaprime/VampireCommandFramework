@@ -20,10 +20,10 @@
 		<Copy SourceFiles="$(OutDir)\VampireCommandFramework.dll" DestinationFolder="$(SolutionDir)/dist" />
 	</Target>
 	<ItemGroup>
-		<PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.668" IncludeAssets="compile" />
-		<PackageReference Include="BepInEx.Core" Version="6.0.0-be.668" IncludeAssets="compile" />
+		<PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.690" IncludeAssets="compile" />
+		<PackageReference Include="BepInEx.Core" Version="6.0.0-be.690" IncludeAssets="compile" />
 		<PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
-		<PackageReference Include="VRising.Unhollowed.Client" Version="1.0.0.*" />
+		<PackageReference Include="VRising.Unhollowed.Client" Version="1.0.*" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
 	</ItemGroup>
 
