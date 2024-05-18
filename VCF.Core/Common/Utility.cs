@@ -9,31 +9,67 @@ namespace VampireCommandFramework.Common;
 internal static class Utility
 {
 
-	// also todo: maybe bad code to rewrite, look later
-	internal static IEnumerable<string> GetParts(string input)
+
+	/// <summary>
+	/// This method splits the input string into parts based on spaces, removing whitespace,
+	/// but preserving quoted strings as literal parts.
+	/// </summary>
+	/// <remarks>
+	/// This should support escaping quotes with \
+	/// </remarks>
+	internal static List<string> GetParts(string input)
 	{
-		var parts = input.Split(" ", StringSplitOptions.RemoveEmptyEntries);
-		for (var i = 0; i < parts.Length; i++)
+		var parts = new List<string>();
+		if (string.IsNullOrWhiteSpace(input)) return parts;
+
+		bool inQuotes = false;
+		var sb = new StringBuilder();
+
+		for (int i = 0; i < input.Length; i++)
 		{
-			if (parts[i].StartsWith('"'))
+			char ch = input[i];
+
+			// Handle escaped quotes
+			if (ch == '\\' && i + 1 < input.Length)
 			{
-				parts[i] = parts[i].TrimStart('"');
-				for (var start = i++; i < parts.Length; i++)
+				char nextChar = input[i + 1];
+				if (nextChar == '"')
 				{
-					if (parts[i].EndsWith('"'))
-					{
-						parts[i] = parts[i].TrimEnd('"');
-						yield return string.Join(" ", parts[start..(i + 1)]);
-						break;
-					}
+					sb.Append(nextChar);
+					i++; // Skip the escaped quote
+					continue;
+				}
+			}
+
+			if (ch == '"')
+			{
+				inQuotes = !inQuotes;
+				continue;
+			}
+
+			if (ch == ' ' && !inQuotes)
+			{
+				if (sb.Length > 0)
+				{
+					parts.Add(sb.ToString());
+					sb.Clear();
 				}
 			}
 			else
 			{
-				yield return parts[i];
+				sb.Append(ch);
 			}
 		}
+
+		if (sb.Length > 0)
+		{
+			parts.Add(sb.ToString());
+		}
+
+		return parts;
 	}
+
+
 
 	internal static void InternalError(this ICommandContext ctx) => ctx.SysReply("An internal error has occurred.");
 
@@ -70,7 +106,7 @@ internal static class Utility
 		var page = new StringBuilder();
 		var rawLines = rawText.Split(Environment.NewLine); // todo: does this work on both platofrms?
 		var lines = new List<string>();
-		
+
 		// process rawLines -> lines of length <= pageSize
 		foreach (var line in rawLines)
 		{
@@ -97,7 +133,7 @@ internal static class Utility
 				lines.Add(line);
 			}
 		}
-		
+
 		// batch as many lines together into pageSize
 		foreach (var line in lines)
 		{
