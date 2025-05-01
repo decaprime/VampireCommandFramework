@@ -1,5 +1,6 @@
 ﻿using ProjectM;
 using ProjectM.Network;
+using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
@@ -12,7 +13,8 @@ internal static class VWorld
 {
 	public static void SendSystemMessage(this User user, string message)
 	{
-		ServerChatUtils.SendSystemMessageToClient(Server.EntityManager, user, message);
+		FixedString512Bytes unityMessage = message;
+		ServerChatUtils.SendSystemMessageToClient(Server.EntityManager, user, ref unityMessage);
 	}
 
 	private static World _serverWorld;

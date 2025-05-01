@@ -1,11 +1,6 @@
-﻿using FakeItEasy;
+using FakeItEasy;
 using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using VampireCommandFramework;
 using VampireCommandFramework.Basics;
 using VampireCommandFramework.Registry;

@@ -1,7 +1,5 @@
-﻿using FakeItEasy;
 using NUnit.Framework;
 using VampireCommandFramework;
-using VampireCommandFramework.Registry;
 
 namespace VCF.Tests;
 
