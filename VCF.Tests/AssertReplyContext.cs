@@ -32,6 +32,11 @@ public class AssertReplyContext : ICommandContext
 		var repliedText = RepliedTextLfAndTrimmed();
 		Assert.That(repliedText.Contains(expected), Is.True, $"Expected {expected} to be contained in replied: {repliedText}");
 	}
+	public void AssertReplyDoesntContain(string expected)
+	{
+		var repliedText = RepliedTextLfAndTrimmed();
+		Assert.That(repliedText.Contains(expected), Is.False, $"Expected {expected} to not be contained in replied: {repliedText}");
+	}
 
 	public void AssertInternalError()
 	{

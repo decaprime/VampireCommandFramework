@@ -19,7 +19,7 @@ internal static class HelpCommands
 	public static void HelpLegacy(ICommandContext ctx, string search = null) => ctx.SysReply($"Attempting compatible .help {search} for non-VCF mods.");
 
 	[Command("help")]
-	public static void HelpCommand(ICommandContext ctx, string search = null)
+	public static void HelpCommand(ICommandContext ctx, string search = null, string filter = null)
 	{
 		// If search is specified first look for matching assembly, then matching command
 		if (!string.IsNullOrEmpty(search))
@@ -28,7 +28,7 @@ internal static class HelpCommands
 			if (foundAssembly.Value != null)
 			{
 				StringBuilder sb = new();
-				PrintAssemblyHelp(ctx, foundAssembly, sb);
+				PrintAssemblyHelp(ctx, foundAssembly, sb, filter);
 				ctx.SysPaginatedReply(sb);
 			}
 			else
@@ -41,7 +41,9 @@ internal static class HelpCommands
 					|| x.Value.Contains(search, StringComparer.InvariantCultureIgnoreCase)
 				);
 
-				individualResults = individualResults.Where(kvp => CommandRegistry.CanCommandExecute(ctx, kvp.Key));
+				individualResults = individualResults.Where(kvp => CommandRegistry.CanCommandExecute(ctx, kvp.Key))
+					                                 .Where(kvp => filter == null ||
+													               kvp.Key.Attribute.Name.Contains(filter, StringComparison.InvariantCultureIgnoreCase));
 
 				if (!individualResults.Any())
 				{
@@ -60,26 +62,16 @@ internal static class HelpCommands
 		else
 		{
 			var sb = new StringBuilder();
-			sb.AppendLine($"Listing {B("all")} commands");
-			foreach (var assembly in CommandRegistry.AssemblyCommandMap)
+			sb.AppendLine($"Listing {B("all")} plugins");
+			sb.AppendLine($"Use {B(".help <plugin>")} for commands in that plugin");
+			// List all plugins they have a command they can execute for
+			foreach (var assemblyName in CommandRegistry.AssemblyCommandMap.Where(x => x.Value.Keys.Any(c => CommandRegistry.CanCommandExecute(ctx, c)))
+																		   .Select(x => x.Key.GetName().Name)
+																		   .OrderBy(x => x))
 			{
-				PrintAssemblyHelp(ctx, assembly, sb);
+				sb.AppendLine($"{assemblyName}");
 			}
 			ctx.SysPaginatedReply(sb);
-		}
-
-		void PrintAssemblyHelp(ICommandContext ctx, KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb)
-		{
-			var name = assembly.Key.GetName().Name;
-			name = _trailingLongDashRegex.Replace(name, "");
-
-			sb.AppendLine($"Commands from {name.Medium().Color(Color.Primary)}:".Underline());
-			var commands = assembly.Value.Keys.Where(c => CommandRegistry.CanCommandExecute(ctx, c));
-
-			foreach (var command in commands)
-			{
-				sb.AppendLine(PrintShortHelp(command));
-			}
 		}
 
 		void GenerateFullHelp(CommandMetadata command, List<string> aliases, StringBuilder sb)
@@ -105,6 +97,46 @@ internal static class HelpCommands
 
 				sb.AppendLine($"{Format.Bold($"{c.Name}")}: {converterUsage.Usage}");
 			}
+		}
+	}
+
+	[Command("help-all", description: "Returns all plugin commands")]
+	public static void HelpAllCommand(ICommandContext ctx, string filter = null)
+	{
+		var sb = new StringBuilder();
+		if (filter == null)
+			sb.AppendLine($"Listing {B("all")} commands");
+		else
+			sb.AppendLine($"Listing {B("all")} commands matching filter '{filter}'");
+		
+		var foundAnything = false;
+		foreach (var assembly in CommandRegistry.AssemblyCommandMap.Where(x => x.Value.Keys.Any(c => CommandRegistry.CanCommandExecute(ctx, c) &&
+																										 (filter == null ||
+																										  PrintShortHelp(c).Contains(filter, StringComparison.InvariantCultureIgnoreCase)))))
+		{
+			PrintAssemblyHelp(ctx, assembly, sb, filter);
+			foundAnything = true;
+		}
+
+		if (!foundAnything)
+			throw ctx.Error($"Could not find any commands for \"{filter}\"");
+
+		ctx.SysPaginatedReply(sb);
+	}
+
+	static void PrintAssemblyHelp(ICommandContext ctx, KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb, string filter = null)
+	{
+		var name = assembly.Key.GetName().Name;
+		name = _trailingLongDashRegex.Replace(name, "");
+
+		sb.AppendLine($"Commands from {name.Medium().Color(Color.Primary)}:".Underline());
+		var commands = assembly.Value.Keys.Where(c => CommandRegistry.CanCommandExecute(ctx, c));
+
+		foreach (var command in commands.OrderBy(c => (c.GroupAttribute != null ? c.GroupAttribute.Name + " " : "") + c.Attribute.Name))
+		{
+			var helpLine = PrintShortHelp(command);
+			if (filter == null || helpLine.Contains(filter, StringComparison.InvariantCultureIgnoreCase))
+				sb.AppendLine(helpLine);
 		}
 	}
 
