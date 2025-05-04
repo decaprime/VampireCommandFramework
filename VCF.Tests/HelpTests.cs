@@ -154,8 +154,8 @@ public class HelpTests
 	{
 		var (commandName, usage, description) = Any.ThreeStrings();
 
-		var command = new CommandMetadata(new CommandAttribute(commandName, usage: usage, description: description), null, null, null, null, null, null);
-		var text = HelpCommands.PrintShortHelp(command);
+		var command = new CommandMetadata(new CommandAttribute(commandName, null, usage: usage, description: description), null, null, null, null, null, null, null);
+		var text = HelpCommands.GetShortHelp(command);
 		Assert.That(text, Is.EqualTo($".{commandName} {usage}"));
 	}
 
@@ -167,9 +167,9 @@ public class HelpTests
 		var paramName = Any.String();
 		A.CallTo(() => param.Name).Returns(paramName);
 
-		var command = new CommandMetadata(new CommandAttribute(commandName, usage: null, description: description), null, null, new[] { param }, null, null, null);
+		var command = new CommandMetadata(new CommandAttribute(commandName, null, usage: null, description: description), null, null, null, new[] { param }, null, null, null);
 
-		var text = HelpCommands.PrintShortHelp(command);
+		var text = HelpCommands.GetShortHelp(command);
 
 		Assert.That(text, Is.EqualTo($".{commandName} ({paramName})"));
 	}
@@ -185,9 +185,9 @@ public class HelpTests
 		A.CallTo(() => param.DefaultValue).Returns(paramValue);
 		A.CallTo(() => param.HasDefaultValue).Returns(true);
 
-		var command = new CommandMetadata(new CommandAttribute(commandName, usage: null, description: description), null, null, new[] { param }, null, null, null);
+		var command = new CommandMetadata(new CommandAttribute(commandName, usage: null, description: description), null, null, null, new[] { param }, null, null, null);
 
-		var text = HelpCommands.PrintShortHelp(command);
+		var text = HelpCommands.GetShortHelp(command);
 
 		Assert.That(text, Is.EqualTo($".{commandName} [{paramName}={paramValue}]"));
 	}

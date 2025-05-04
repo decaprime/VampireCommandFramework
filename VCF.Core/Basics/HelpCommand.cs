@@ -77,7 +77,7 @@ internal static class HelpCommands
 		void GenerateFullHelp(CommandMetadata command, List<string> aliases, StringBuilder sb)
 		{
 			sb.AppendLine($"{B(command.Attribute.Name)} ({command.Attribute.Id}) {command.Attribute.Description}");
-			sb.AppendLine(PrintShortHelp(command));
+			sb.AppendLine(GetShortHelp(command));
 			sb.AppendLine($"{B("Aliases").Underline()}: {string.Join(", ", aliases).Italic()}");
 
 			// Automatically Display Enum types
@@ -112,7 +112,7 @@ internal static class HelpCommands
 		var foundAnything = false;
 		foreach (var assembly in CommandRegistry.AssemblyCommandMap.Where(x => x.Value.Keys.Any(c => CommandRegistry.CanCommandExecute(ctx, c) &&
 																										 (filter == null ||
-																										  PrintShortHelp(c).Contains(filter, StringComparison.InvariantCultureIgnoreCase)))))
+																										  GetShortHelp(c).Contains(filter, StringComparison.InvariantCultureIgnoreCase)))))
 		{
 			PrintAssemblyHelp(ctx, assembly, sb, filter);
 			foundAnything = true;
@@ -134,13 +134,13 @@ internal static class HelpCommands
 
 		foreach (var command in commands.OrderBy(c => (c.GroupAttribute != null ? c.GroupAttribute.Name + " " : "") + c.Attribute.Name))
 		{
-			var helpLine = PrintShortHelp(command);
+			var helpLine = GetShortHelp(command);
 			if (filter == null || helpLine.Contains(filter, StringComparison.InvariantCultureIgnoreCase))
 				sb.AppendLine(helpLine);
 		}
 	}
 
-	internal static string PrintShortHelp(CommandMetadata command)
+	internal static string GetShortHelp(CommandMetadata command)
 	{
 		var attr = command.Attribute;
 		var groupPrefix = string.IsNullOrEmpty(command.GroupAttribute?.Name) ? string.Empty : $"{command.GroupAttribute.Name} ";
