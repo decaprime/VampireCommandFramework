@@ -1,6 +1,5 @@
-using Consumer;
-using NUnit.Framework;
 using FakeItEasy;
+using NUnit.Framework;
 using System.Reflection;
 using VampireCommandFramework;
 

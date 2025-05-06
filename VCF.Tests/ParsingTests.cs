@@ -1,7 +1,6 @@
 using Consumer;
-using NUnit.Framework;
 using FakeItEasy;
-using VampireCommandFramework.Registry;
+using NUnit.Framework;
 using VampireCommandFramework;
 
 namespace VCF.Tests;

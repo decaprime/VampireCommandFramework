@@ -1,6 +1,8 @@
-﻿using ProjectM;
+﻿using Engine.Console;
+using ProjectM;
 using ProjectM.Network;
 using System;
+using Unity.Collections;
 using VampireCommandFramework.Breadstone;
 
 namespace VampireCommandFramework;
@@ -44,9 +46,11 @@ public class ChatCommandContext : ICommandContext
 	static int maxMessageLength = 509;
 	public void Reply(string v)
 	{
-		if(v.Length > maxMessageLength)
+		if (v.Length > maxMessageLength)
 		 	v = v[..maxMessageLength];
-		ServerChatUtils.SendSystemMessageToClient(VWorld.Server.EntityManager, User, v);
+
+		FixedString512Bytes unityMessage = v;
+		ServerChatUtils.SendSystemMessageToClient(VWorld.Server.EntityManager, User, ref unityMessage);
 	}
 
 	// todo: expand this, just throw from here as void and build a handler that can message user/log.

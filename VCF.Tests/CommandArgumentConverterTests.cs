@@ -1,7 +1,6 @@
 ﻿using FakeItEasy;
 using NUnit.Framework;
 using VampireCommandFramework;
-using VampireCommandFramework.Basics;
 
 namespace VCF.Tests;
 public class CommandArgumentConverterTests
