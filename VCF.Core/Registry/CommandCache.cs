@@ -14,6 +14,8 @@ internal class CommandCache
 
 	internal void AddCommand(string key, ParameterInfo[] parameters, CommandMetadata command)
 	{
+		key = key.ToLowerInvariant();
+
 		var p = parameters.Length;
 		var d = parameters.Where(p => p.HasDefaultValue).Count();
 		if (!_newCache.ContainsKey(key))
@@ -41,15 +43,16 @@ internal class CommandCache
 
 	internal CacheResult GetCommand(string rawInput)
 	{
+		var lowerRawInput = rawInput.ToLowerInvariant();
 		// todo: I think allows for overlap between .foo "bar" and .foo bar <no parameters>
 		List<CommandMetadata> possibleMatches = new();
 		foreach (var (key, argCounts) in _newCache)
 		{
-			if (rawInput.StartsWith(key))
+			if (lowerRawInput.StartsWith(key))
 			{
 				// there's no need to inspect the parameters if the next character isn't a space or the end of the string
 				// because it means that this was part of a different prefix token
-				if (rawInput.Length > key.Length && rawInput[key.Length] != ' ')
+				if (lowerRawInput.Length > key.Length && lowerRawInput[key.Length] != ' ')
 				{
 					continue;
 				}
