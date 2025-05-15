@@ -53,7 +53,7 @@ public static class CommandRegistry
 			}
 			catch (Exception e)
 			{
-				Log.Error($"Error executing {middleware.GetType().Name} {e}");
+				Log.Error($"Error executing {middleware.GetType().Name.Color(Color.Gold)} {e}");
 				return false;
 			}
 		}
@@ -168,7 +168,7 @@ public static class CommandRegistry
 			foreach (var (command, error) in failedCommands)
 			{
 				string assemblyInfo = command.Assembly.GetName().Name;
-				ctx.Reply($"  - {command.Attribute.Id} ({assemblyInfo}): {error}");
+				ctx.Reply($"  - {command.Attribute.Name} ({assemblyInfo}): {error}");
 			}
 			return CommandResult.UsageError;
 		}
@@ -190,7 +190,7 @@ public static class CommandRegistry
 			var (command, _, _) = successfulCommands[i];
 			var cmdAssembly = command.Assembly.GetName().Name;
 			var description = command.Attribute.Description;
-			sb.AppendLine($" {("."+ (i + 1).ToString()).Color(Color.Command)} - {cmdAssembly.Bold().Color(Color.Primary)} - {B(command.Attribute.Name)} ({command.Attribute.Id}) {command.Attribute.Description}");
+			sb.AppendLine($" {("."+ (i + 1).ToString()).Color(Color.Command)} - {cmdAssembly.Bold().Color(Color.Primary)} - {B(command.Attribute.Name)} {command.Attribute.Description}");
 			sb.AppendLine("   " + HelpCommands.GetShortHelp(command));
 		}
 		ctx.SysPaginatedReply(sb);
@@ -210,7 +210,7 @@ public static class CommandRegistry
 
 		if (selectedIndex < 1 || selectedIndex > pendingCommands.Count)
 		{
-			ctx.Reply($"{"[error]".Color(Color.Red)} Invalid selection. Please select a number between 1 and {pendingCommands.Count}.");
+			ctx.Reply($"{"[error]".Color(Color.Red)} Invalid selection. Please select a number between {"1".Color(Color.Gold)} and {pendingCommands.Count.ToString().Color(Color.Gold)}.");
 			return CommandResult.UsageError;
 		}
 
@@ -238,14 +238,14 @@ public static class CommandRegistry
 		// Handle parameter count mismatch
 		if (argCount > paramsCount)
 		{
-			return (false, null, $"Too many parameters: expected {paramsCount}, got {argCount}");
+			return (false, null, $"Too many parameters: expected {paramsCount.ToString().Color(Color.Gold)}, got {argCount.ToString().Color(Color.Gold)}");
 		}
 		else if (argCount < paramsCount)
 		{
 			var canDefault = command.Parameters.Skip(argCount).All(p => p.HasDefaultValue);
 			if (!canDefault)
 			{
-				return (false, null, $"Missing required parameters: expected {paramsCount}, got {argCount}");
+				return (false, null, $"Missing required parameters: expected {paramsCount.ToString().Color(Color.Gold)}, got {argCount.ToString().Color(Color.Gold)}");
 			}
 			for (var i = argCount; i < paramsCount; i++)
 			{
@@ -274,7 +274,7 @@ public static class CommandRegistry
 						if (!converterContextType.IsAssignableFrom(ctx.GetType()))
 						{
 							// Signal internal error with a special return format
-							return (false, null, $"INTERNAL_ERROR:Converter type {converterContextType.Name} is not assignable from {ctx.GetType().Name}");
+							return (false, null, $"INTERNAL_ERROR:Converter type {converterContextType.Name.ToString().Color(Color.Gold)} is not assignable from {ctx.GetType().Name.ToString().Color(Color.Gold)}");
 						}
 
 						object result;
@@ -289,16 +289,16 @@ public static class CommandRegistry
 						{
 							if (tie.InnerException is CommandException e)
 							{
-								conversionError = $"Parameter {i + 1} ({param.Name}): {e.Message}";
+								conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}";
 							}
 							else
 							{
-								conversionError = $"Parameter {i + 1} ({param.Name}): Unexpected error converting parameter";
+								conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter";
 							}
 						}
 						catch (Exception)
 						{
-							conversionError = $"Parameter {i + 1} ({param.Name}): Unexpected error converting parameter";
+							conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter";
 						}
 					}
 					else
@@ -320,7 +320,7 @@ public static class CommandRegistry
 
 									if (!isDefined)
 									{
-										return (false, null, $"Parameter {i + 1} ({param.Name}): Invalid enum value '{arg}' for {param.ParameterType.Name}");
+										return (false, null, $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Invalid enum value '{arg.ToString().Color(Color.Gold)}' for {param.ParameterType.Name.ToString().Color(Color.Gold)}");
 									}
 								}
 							}
@@ -330,13 +330,13 @@ public static class CommandRegistry
 						}
 						catch (Exception e)
 						{
-							conversionError = $"Parameter {i + 1} ({param.Name}): {e.Message}";
+							conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}";
 						}
 					}
 				}
 				catch (Exception ex)
 				{
-					conversionError = $"Parameter {i + 1} ({param.Name}): Unexpected error: {ex.Message}";
+					conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error: {ex.Message}";
 				}
 
 				if (!conversionSuccess)
@@ -354,7 +354,7 @@ public static class CommandRegistry
 		// Handle Context Type not matching command
 		if (!command.ContextType.IsAssignableFrom(ctx?.GetType()))
 		{
-			Log.Warning($"Matched [{command.Attribute.Id}] but can not assign {command.ContextType.Name} from {ctx?.GetType().Name}");
+			Log.Warning($"Matched [{command.Attribute.Name.ToString().Color(Color.Gold)}] but can not assign {command.ContextType.Name.ToString().Color(Color.Gold)} from {ctx?.GetType().Name.ToString().Color(Color.Gold)}");
 			return CommandResult.InternalError;
 		}
 
@@ -383,14 +383,14 @@ public static class CommandRegistry
 		// Handle Context Type not matching command
 		if (!command.ContextType.IsAssignableFrom(ctx?.GetType()))
 		{
-			Log.Warning($"Matched [{command.Attribute.Id}] but can not assign {command.ContextType.Name} from {ctx?.GetType().Name}");
+			Log.Warning($"Matched [{command.Attribute.Name.ToString().Color(Color.Gold)}] but can not assign {command.ContextType.Name.ToString().Color(Color.Gold)} from {ctx?.GetType().Name.ToString().Color(Color.Gold)}");
 			return CommandResult.InternalError;
 		}
 
 		// Then handle this invocation's context not being valid for the command classes custom constructor
 		if (command.Constructor != null && !command.ConstructorType.IsAssignableFrom(ctx?.GetType()))
 		{
-			Log.Warning($"Matched [{command.Attribute.Id}] but can not assign {command.ConstructorType.Name} from {ctx?.GetType().Name}");
+			Log.Warning($"Matched [{command.Attribute.Name.ToString().Color(Color.Gold)}] but can not assign {command.ConstructorType.Name.ToString().Color(Color.Gold)} from {ctx?.GetType().Name.ToString().Color(Color.Gold)}");
 			ctx.InternalError();
 			return CommandResult.InternalError;
 		}
@@ -421,7 +421,7 @@ public static class CommandRegistry
 		// Handle Middlewares
 		if (!CanCommandExecute(ctx, command))
 		{
-			ctx.Reply($"{"[denied]".Color(Color.Red)} {command.Attribute.Id}");
+			ctx.Reply($"{"[denied]".Color(Color.Red)} {command.Attribute.Name.ToString().Color(Color.Gold)}");
 			return CommandResult.Denied;
 		}
 
@@ -439,7 +439,7 @@ public static class CommandRegistry
 		}
 		catch (Exception e)
 		{
-			Log.Warning($"Hit unexpected exception executing command {command.Attribute.Id}\n: {e}");
+			Log.Warning($"Hit unexpected exception executing command {command.Attribute.Id.ToString().Color(Color.Gold)}\n: {e}");
 			ctx.InternalError();
 			return CommandResult.InternalError;
 		}
@@ -460,7 +460,7 @@ public static class CommandRegistry
 		var convertFrom = args.FirstOrDefault();
 		if (convertFrom == null)
 		{
-			Log.Warning($"Could not resolve converter type {converter.Name}");
+			Log.Warning($"Could not resolve converter type {converter.Name.ToString().Color(Color.Gold)}");
 			return;
 		}
 
@@ -471,7 +471,7 @@ public static class CommandRegistry
 		}
 		else
 		{
-			Log.Warning($"Call to UnregisterConverter for a converter that was not registered. Type: {converter.Name}");
+			Log.Warning($"Call to UnregisterConverter for a converter that was not registered. Type: {converter.Name.ToString().Color(Color.Gold)}");
 		}
 	}
 
@@ -573,7 +573,7 @@ public static class CommandRegistry
 		var first = paramInfos.FirstOrDefault();
 		if (first == null || first.ParameterType is ICommandContext)
 		{
-			Log.Error($"Method {method.Name} has no CommandContext as first argument");
+			Log.Error($"Method {method.Name.ToString().Color(Color.Gold)} has no CommandContext as first argument");
 			return;
 		}
 
@@ -583,7 +583,7 @@ public static class CommandRegistry
 		{
 			if (_converters.ContainsKey(param.ParameterType))
 			{
-				Log.Debug($"Method {method.Name} has a parameter of type {param.ParameterType.Name} which is registered as a converter");
+				Log.Debug($"Method {method.Name.ToString().Color(Color.Gold)} has a parameter of type {param.ParameterType.Name.ToString().Color(Color.Gold)} which is registered as a converter");
 				return true;
 			}
 
@@ -591,7 +591,7 @@ public static class CommandRegistry
 			if (converter == null ||
 				!converter.CanConvertFrom(typeof(string)))
 			{
-				Log.Warning($"Parameter {param.Name} could not be converted, so {method.Name} will be ignored.");
+				Log.Warning($"Parameter {param.Name.ToString().Color(Color.Gold)} could not be converted, so {method.Name.ToString().Color(Color.Gold)} will be ignored.");
 				return false;
 			}
 
