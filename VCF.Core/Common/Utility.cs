@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -71,7 +71,7 @@ internal static class Utility
 
 	internal static void InternalError(this ICommandContext ctx) => ctx.SysReply("An internal error has occurred.");
 
-	internal static void SysReply(this ICommandContext ctx, string input) => ctx.Reply($"[vcf] ".Color(Color.Primary) + input.Color(Color.White));
+	internal static void SysReply(this ICommandContext ctx, string input) => ctx.Reply($"[vcf] ".Color(Color.Primary) + input.Color(Color.Beige));
 
 	internal static void SysPaginatedReply(this ICommandContext ctx, StringBuilder input) => SysPaginatedReply(ctx, input.ToString());
 
@@ -102,7 +102,7 @@ internal static class Utility
 	{
 		var pages = new List<string>();
 		var page = new StringBuilder();
-		var rawLines = rawText.Split(Environment.NewLine); // todo: does this work on both platofrms?
+		var rawLines = rawText.Split("\n"); // todo: does this work on both platofrms?
 		var lines = new List<string>();
 
 		// process rawLines -> lines of length <= pageSize
@@ -116,7 +116,7 @@ internal static class Utility
 				{
 					// find the last space before the page size within 5% of pageSize buffer
 					var splitIndex = remaining.LastIndexOf(' ', pageSize - (int)(pageSize * 0.05));
-					if (splitIndex < 0)
+					if (splitIndex <= 0)
 					{
 						splitIndex = Math.Min(pageSize - 1, remaining.Length);
 					}

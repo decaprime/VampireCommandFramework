@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using VampireCommandFramework;
 using VampireCommandFramework.Common;
 
@@ -121,7 +121,7 @@ public class CommandContextTests
 	{
 		public IServiceProvider Services => throw new NotImplementedException();
 
-		public string Name => throw new NotImplementedException();
+		public string Name => "GoodName";
 
 		public bool IsAdmin { get; set; } = true;
 
@@ -138,7 +138,7 @@ public class CommandContextTests
 	{
 		public IServiceProvider Services => throw new NotImplementedException();
 
-		public string Name => throw new NotImplementedException();
+		public string Name => "Bad Name";
 
 		public bool IsAdmin { get; set; } = true;
 

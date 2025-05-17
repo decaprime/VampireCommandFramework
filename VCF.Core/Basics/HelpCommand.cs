@@ -38,6 +38,7 @@ internal static class HelpCommands
 				var individualResults = commands.Where(x =>
 					string.Equals(x.Key.Attribute.Id, search, StringComparison.InvariantCultureIgnoreCase)
 					|| string.Equals(x.Key.Attribute.Name, search, StringComparison.InvariantCultureIgnoreCase)
+					|| (x.Key.GroupAttribute != null && string.Equals(x.Key.GroupAttribute.Name, search, StringComparison.InvariantCultureIgnoreCase))
 					|| x.Value.Contains(search, StringComparer.InvariantCultureIgnoreCase)
 				);
 
@@ -47,7 +48,7 @@ internal static class HelpCommands
 
 				if (!individualResults.Any())
 				{
-					throw ctx.Error($"Could not find any commands for \"{search}\"");
+					throw ctx.Error($"Could not find any commands for \"{search.Color(Color.Gold)}\"");
 				}
 
 				var sb = new StringBuilder();
@@ -63,28 +64,28 @@ internal static class HelpCommands
 		{
 			var sb = new StringBuilder();
 			sb.AppendLine($"Listing {B("all")} plugins");
-			sb.AppendLine($"Use {B(".help <plugin>")} for commands in that plugin");
+			sb.AppendLine($"Use {B(".help <plugin>").Color(Color.Gold)} for commands in that plugin");
 			// List all plugins they have a command they can execute for
 			foreach (var assemblyName in CommandRegistry.AssemblyCommandMap.Where(x => x.Value.Keys.Any(c => CommandRegistry.CanCommandExecute(ctx, c)))
 																		   .Select(x => x.Key.GetName().Name)
 																		   .OrderBy(x => x))
 			{
-				sb.AppendLine($"{assemblyName}");
+				sb.AppendLine($"{assemblyName.Color(Color.Lilac)}");
 			}
 			ctx.SysPaginatedReply(sb);
 		}
 
 		void GenerateFullHelp(CommandMetadata command, List<string> aliases, StringBuilder sb)
 		{
-			sb.AppendLine($"{B(command.Attribute.Name)} ({command.Attribute.Id}) {command.Attribute.Description}");
+			sb.AppendLine($"{B(command.Attribute.Name).Color(Color.LightRed)} {command.Attribute.Description.Color(Color.Grey)}");
 			sb.AppendLine(GetShortHelp(command));
-			sb.AppendLine($"{B("Aliases").Underline()}: {string.Join(", ", aliases).Italic()}");
+			sb.AppendLine($"{B("Aliases").Underline().Color(Color.Pink)}: {string.Join(", ", aliases).Italic()}");
 
 			// Automatically Display Enum types
 			var enums = command.Parameters.Select(p => p.ParameterType).Distinct().Where(t => t.IsEnum);
 			foreach (var e in enums)
 			{
-				sb.AppendLine($"{Format.Bold($"{e.Name} Values").Underline()}: {string.Join(", ", Enum.GetNames(e))}");
+				sb.AppendLine($"{Format.Bold($"{e.Name} Values").Underline().Color(Color.Pink)}: {string.Join(", ", Enum.GetNames(e)).Color(Color.Command)}");
 			}
 
 			// Check CommandRegistry for types that can be converted and further for IConverterUsage
@@ -150,7 +151,7 @@ internal static class HelpCommands
 		string usageText = GetOrGenerateUsage(command);
 
 		var prefix = CommandRegistry.DEFAULT_PREFIX.Color(Color.Yellow);
-		var commandString = fullCommandName.Color(Color.White);
+		var commandString = fullCommandName.Color(Color.Beige);
 		return $"{prefix}{commandString}{usageText}";
 	}
 

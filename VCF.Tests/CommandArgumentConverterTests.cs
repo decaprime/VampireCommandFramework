@@ -1,4 +1,4 @@
-﻿using FakeItEasy;
+using FakeItEasy;
 using NUnit.Framework;
 using VampireCommandFramework;
 
@@ -38,7 +38,7 @@ public class CommandArgumentConverterTests
 	{
 		public IServiceProvider Services => throw new NotImplementedException();
 
-		public string Name => throw new NotImplementedException();
+		public string Name => "TestName";
 
 		public bool IsAdmin => true;
 

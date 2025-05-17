@@ -1,4 +1,4 @@
-﻿using BepInEx.IL2CPP;
+using BepInEx.IL2CPP;
 using System;
 using System.Linq;
 using System.Text;
@@ -76,7 +76,7 @@ public class BepInExConfigCommands
 			sb.AppendLine($"[{section.Key}]");
 			foreach (var (def, entry) in section)
 			{
-				sb.AppendLine($"{def.Key.Color(Color.White)} = {entry.BoxedValue.ToString().Color(Color.LightGrey)}");
+				sb.AppendLine($"{def.Key.Color(Color.Beige)} = {entry.BoxedValue.ToString().Color(Color.LightGrey)}");
 			}
 		}
 		ctx.SysPaginatedReply(sb);
