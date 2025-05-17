@@ -4,6 +4,9 @@ using Unity.Entities;
 using HarmonyLib;
 using Unity.Collections;
 using System;
+using System.Linq;
+using VampireCommandFramework.Common;
+using System.Text;
 
 namespace VampireCommandFramework.Breadstone;
 
@@ -12,7 +15,7 @@ namespace VampireCommandFramework.Breadstone;
 [HarmonyPatch(typeof(ChatMessageSystem), nameof(ChatMessageSystem.OnUpdate))]
 public static class ChatMessageSystem_Patch
 {
-	public static bool Prefix(ChatMessageSystem __instance)
+	public static void Prefix(ChatMessageSystem __instance)
 	{
 		if (__instance.__query_661171423_0 != null)
 		{
@@ -25,6 +28,8 @@ public static class ChatMessageSystem_Patch
 
 				var messageText = chatEventData.MessageText.ToString();
 
+				if (!messageText.StartsWith(".") || messageText.StartsWith("..")) continue;
+
 				VChatEvent ev = new VChatEvent(fromData.User, fromData.Character, messageText, chatEventData.MessageType, userData);
 				var ctx = new ChatCommandContext(ev);
 
@@ -35,7 +40,7 @@ public static class ChatMessageSystem_Patch
 				}
 				catch (Exception e)
 				{
-					Common.Log.Error($"Error while handling chat message {e}");
+					Log.Error($"Error while handling chat message {e}");
 					continue;
 				}
 
@@ -44,18 +49,23 @@ public static class ChatMessageSystem_Patch
 				{
 					chatEventData.MessageText = messageText.Replace("-legacy", string.Empty);
 					__instance.EntityManager.SetComponentData(entity, chatEventData);
-					return true;
+					continue;
 				}
-
-				else if (result != CommandResult.Unmatched)
+				else if (result == CommandResult.Unmatched)
 				{
-					//__instance.EntityManager.AddComponent<DestroyTag>(entity);
-					VWorld.Server.EntityManager.DestroyEntity(entity);
-					return true;
-				}
+					var sb = new StringBuilder();
 
+					sb.AppendLine($"Command not found: {messageText.Color(Color.Command)}");
+
+					var closeMatches = CommandRegistry.FindCloseMatches(ctx, messageText).ToArray();
+					if (closeMatches.Length > 0)
+					{
+						sb.AppendLine($"Did you mean: {string.Join(", ", closeMatches.Select(c => c.Color(Color.Command)))}");
+					}
+					ctx.SysReply(sb.ToString());
+				}
+				VWorld.Server.EntityManager.DestroyEntity(entity);
 			}
 		}
-		return true;
 	}
 }
