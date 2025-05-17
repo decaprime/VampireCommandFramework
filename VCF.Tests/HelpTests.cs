@@ -217,7 +217,6 @@ public class HelpTests
 	}
 
 	[Test]
-
 	public void SpecifiedAssemblyAndSearchedForCommand()
 	{
 		CommandRegistry.RegisterConverter(typeof(SomeTypeConverter));
@@ -228,5 +227,69 @@ public class HelpTests
 		Assert.That(CommandRegistry.Handle(ctx, ".help vcf.tests seaRCH"), Is.EqualTo(CommandResult.Success));
 		ctx.AssertReplyContains("searchForCommand");
 		ctx.AssertReplyDoesntContain("test-help");
+	}
+
+	[CommandGroup("testgroup", "tg")]
+	class ShorthandTestCommands
+	{
+		[Command("command-one", "c1", description: "First test command")]
+		public void CommandOne(ICommandContext ctx)
+		{
+		}
+
+		[Command("command-two", "c2", description: "Second test command")]
+		public void CommandTwo(ICommandContext ctx)
+		{
+		}
+	}
+
+	[Test]
+	public void HelpCommand_SearchByShorthand_Command()
+	{
+		CommandRegistry.RegisterCommandType(typeof(ShorthandTestCommands));
+
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help c1"), Is.EqualTo(CommandResult.Success));
+		AnyCtx.AssertReplyContains("command-one");
+		AnyCtx.AssertReplyDoesntContain("command-two");
+	}
+
+	[Test]
+	public void HelpCommand_SearchByShorthand_Group()
+	{
+		CommandRegistry.RegisterCommandType(typeof(ShorthandTestCommands));
+
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help tg"), Is.EqualTo(CommandResult.Success));
+		AnyCtx.AssertReplyContains("testgroup command-one");
+		AnyCtx.AssertReplyContains("testgroup command-two");
+	}
+
+	[Test]
+	public void HelpCommand_HelpAll_FilterByShorthand_Command()
+	{
+		CommandRegistry.RegisterCommandType(typeof(ShorthandTestCommands));
+
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help-all c1"), Is.EqualTo(CommandResult.Success));
+		AnyCtx.AssertReplyContains("testgroup command-one");
+		AnyCtx.AssertReplyDoesntContain("testgroup command-two");
+	}
+
+	[Test]
+	public void HelpCommand_HelpAll_FilterByShorthand_Group()
+	{
+		CommandRegistry.RegisterCommandType(typeof(ShorthandTestCommands));
+
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help-all tg"), Is.EqualTo(CommandResult.Success));
+		AnyCtx.AssertReplyContains("testgroup command-one");
+		AnyCtx.AssertReplyContains("testgroup command-two");
+	}
+
+	[Test]
+	public void HelpCommand_Help_FilterWithShorthandInResults()
+	{
+		CommandRegistry.RegisterCommandType(typeof(ShorthandTestCommands));
+
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help VCF.Tests t"), Is.EqualTo(CommandResult.Success));
+		AnyCtx.AssertReplyContains("testgroup command-one");
+		AnyCtx.AssertReplyContains("testgroup command-two");
 	}
 }

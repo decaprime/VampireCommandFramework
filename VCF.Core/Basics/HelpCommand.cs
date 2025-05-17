@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using Unity.Collections;
 using VampireCommandFramework.Common;
 using VampireCommandFramework.Registry;
 
@@ -38,13 +39,16 @@ internal static class HelpCommands
 				var individualResults = commands.Where(x =>
 					string.Equals(x.Key.Attribute.Id, search, StringComparison.InvariantCultureIgnoreCase)
 					|| string.Equals(x.Key.Attribute.Name, search, StringComparison.InvariantCultureIgnoreCase)
-					|| (x.Key.GroupAttribute != null && string.Equals(x.Key.GroupAttribute.Name, search, StringComparison.InvariantCultureIgnoreCase))
+					|| string.Equals(x.Key.Attribute.ShortHand, search, StringComparison.InvariantCultureIgnoreCase)
+					|| (x.Key.GroupAttribute != null &&
+						(string.Equals(x.Key.GroupAttribute.Name, search, StringComparison.InvariantCultureIgnoreCase)
+						 || string.Equals(x.Key.GroupAttribute.ShortHand, search, StringComparison.InvariantCultureIgnoreCase)))
 					|| x.Value.Contains(search, StringComparer.InvariantCultureIgnoreCase)
 				);
 
 				individualResults = individualResults.Where(kvp => CommandRegistry.CanCommandExecute(ctx, kvp.Key))
-					                                 .Where(kvp => filter == null ||
-													               kvp.Key.Attribute.Name.Contains(filter, StringComparison.InvariantCultureIgnoreCase));
+													 .Where(kvp => filter == null ||
+																   kvp.Key.Attribute.Name.Contains(filter, StringComparison.InvariantCultureIgnoreCase));
 
 				if (!individualResults.Any())
 				{
@@ -109,11 +113,13 @@ internal static class HelpCommands
 			sb.AppendLine($"Listing {B("all")} commands");
 		else
 			sb.AppendLine($"Listing {B("all")} commands matching filter '{filter}'");
-		
+
 		var foundAnything = false;
 		foreach (var assembly in CommandRegistry.AssemblyCommandMap.Where(x => x.Value.Keys.Any(c => CommandRegistry.CanCommandExecute(ctx, c) &&
 																										 (filter == null ||
-																										  GetShortHelp(c).Contains(filter, StringComparison.InvariantCultureIgnoreCase)))))
+																										  GetShortHelp(c).Contains(filter, StringComparison.InvariantCultureIgnoreCase) ||
+																										  (c.Attribute.ShortHand != null && c.Attribute.ShortHand.Contains(filter, StringComparison.InvariantCultureIgnoreCase)) ||
+																										  (c.GroupAttribute?.ShortHand != null && c.GroupAttribute.ShortHand.Contains(filter, StringComparison.InvariantCultureIgnoreCase))))))
 		{
 			PrintAssemblyHelp(ctx, assembly, sb, filter);
 			foundAnything = true;
@@ -131,13 +137,17 @@ internal static class HelpCommands
 		name = _trailingLongDashRegex.Replace(name, "");
 
 		sb.AppendLine($"Commands from {name.Medium().Color(Color.Primary)}:".Underline());
-		var commands = assembly.Value.Keys.Where(c => CommandRegistry.CanCommandExecute(ctx, c));
+		var commands = assembly.Value.Where(c => CommandRegistry.CanCommandExecute(ctx, c.Key));
 
-		foreach (var command in commands.OrderBy(c => (c.GroupAttribute != null ? c.GroupAttribute.Name + " " : "") + c.Attribute.Name))
+		foreach (var command in commands.OrderBy(c => (c.Key.GroupAttribute != null ? c.Key.GroupAttribute.Name + " " : "") + c.Key.Attribute.Name))
 		{
-			var helpLine = GetShortHelp(command);
-			if (filter == null || helpLine.Contains(filter, StringComparison.InvariantCultureIgnoreCase))
+			var aliases = command.Value;
+			var helpLine = GetShortHelp(command.Key);
+			if (filter == null || helpLine.Contains(filter, StringComparison.InvariantCultureIgnoreCase) ||
+				aliases.Any(x => x.Contains(filter, StringComparison.InvariantCultureIgnoreCase)))
+			{
 				sb.AppendLine(helpLine);
+			}
 		}
 	}
 
@@ -172,4 +182,3 @@ internal static class HelpCommands
 		return usageText;
 	}
 }
-
