@@ -82,7 +82,7 @@ public class HelpTests
 	{
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".help help-legacy"), Is.EqualTo(CommandResult.Success));
 		AnyCtx.AssertReply($"""
-			[vcf] help-legacy (help-legacy) Passes through a .help command that is compatible with other mods that don't use VCF.
+			[vcf] help-legacy Passes through a .help command that is compatible with other mods that don't use VCF.
 			.help-legacy [search=]
 			Aliases: .help-legacy
 			""");

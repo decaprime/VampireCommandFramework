@@ -53,12 +53,124 @@ public static class CommandRegistry
 			}
 			catch (Exception e)
 			{
-				Log.Error($"Error executing {middleware.GetType().Name} {e}");
+				Log.Error($"Error executing {middleware.GetType().Name.Color(Color.Gold)} {e}");
 				return false;
 			}
 		}
 		return true;
 	}
+
+	internal static IEnumerable<string> FindCloseMatches(ICommandContext ctx, string input)
+	{
+		// Look for the closest matches to the input command
+		const int maxResults = 3;
+
+		// Set a more reasonable max distance
+		const int maxFixedDistance = 3;  // For short to medium commands
+		const double maxRelativeDistance = 0.5; // Max 50% of command length can be different
+
+		// Ensure we have a valid input
+		if (string.IsNullOrWhiteSpace(input))
+		{
+			return Enumerable.Empty<string>();
+		}
+
+		// Remove the prefix if it exists to match command names better
+		var normalizedInput = input[1..].ToLowerInvariant();
+
+		var maxDistance = Math.Max(maxFixedDistance,
+								(int)Math.Ceiling(normalizedInput.Length * maxRelativeDistance));
+
+		// Get all registered commands for comparison
+		var allCommands = AssemblyCommandMap.SelectMany(a => a.Value.Keys).ToList();
+
+		// Calculate edit distances and select the closest matches
+		var matches = allCommands
+			.Where(c => CanCommandExecute(ctx, c))
+			.SelectMany(cmd =>
+			{
+				// Get all possible combinations of group and command names
+				var groupNames = cmd.GroupAttribute == null
+					? [""]
+					: cmd.GroupAttribute.ShortHand == null
+						? [cmd.GroupAttribute.Name + " "]
+						: new[] { cmd.GroupAttribute.Name + " ", cmd.GroupAttribute.ShortHand + " " };
+
+				var commandNames = cmd.Attribute.ShortHand == null
+					? [cmd.Attribute.Name]
+					: new[] { cmd.Attribute.Name, cmd.Attribute.ShortHand };
+
+				return groupNames.SelectMany(group =>
+					commandNames.Select(name => new
+					{
+						FullName = (group + name).ToLowerInvariant(),
+						Command = cmd
+					}));
+			})
+			.Select(cmdInfo =>
+			{
+				// Calculate the Damerau-Levenshtein distance
+				var distance = DamerauLevenshteinDistance(normalizedInput, cmdInfo.FullName);
+
+				var maxCmdDistance = Math.Max(maxDistance, (int)Math.Ceiling(normalizedInput.Length * maxRelativeDistance));
+
+				return new { Command = cmdInfo.FullName, Distance = distance, MaxDistance = maxCmdDistance };
+			})
+			.Where(x => x.Distance <= x.MaxDistance) // Apply adaptive threshold
+			.OrderBy(x => x.Distance)
+			.DistinctBy(x => x.Command)
+			.Take(maxResults)
+			.Select(x => "." + x.Command);
+
+		return matches;
+	}
+
+	private static float DamerauLevenshteinDistance(string s, string t)
+	{
+		// Handle edge cases
+		if (string.IsNullOrEmpty(s))
+			return string.IsNullOrEmpty(t) ? 0 : t.Length;
+		if (string.IsNullOrEmpty(t))
+			return s.Length;
+
+		// Create distance matrix
+		float[,] matrix = new float[s.Length + 1, t.Length + 1];
+
+		// Initialize first row and column
+		for (int i = 0; i <= s.Length; i++)
+			matrix[i, 0] = i;
+
+		for (int j = 0; j <= t.Length; j++)
+			matrix[0, j] = j;
+
+		// Calculate distances
+		for (int i = 1; i <= s.Length; i++)
+		{
+			for (int j = 1; j <= t.Length; j++)
+			{
+				int cost = (s[i - 1] == t[j - 1]) ? 0 : 1;
+
+				// Standard Levenshtein operations: deletion, insertion, substitution
+				matrix[i, j] = Math.Min(Math.Min(
+					matrix[i - 1, j] + 1,      // Deletion
+					matrix[i, j - 1] + 1),     // Insertion
+					matrix[i - 1, j - 1] + 1.5f*cost); // Substitution (slightly higher than just missing/extra letters)
+
+				// Add transposition check (swap)
+				if (i > 1 && j > 1 &&
+					s[i - 1] == t[j - 2] &&
+					s[i - 2] == t[j - 1])
+				{
+					matrix[i, j] = Math.Min(matrix[i, j],
+						matrix[i - 2, j - 2] + cost); // Transposition
+				}
+			}
+		}
+
+		return matrix[s.Length, t.Length];
+	}
+
+
 
 	private static void HandleBeforeExecute(ICommandContext ctx, CommandMetadata command)
 	{
@@ -164,12 +276,14 @@ public static class CommandRegistry
 		// Case 1: No command succeeded
 		if (successfulCommands.Count == 0)
 		{
-			ctx.Reply($"{"[error]".Color(Color.Red)} Failed to execute command due to parameter conversion errors:");
+			var sb = new StringBuilder();
+			sb.AppendLine($"{"[error]".Color(Color.Red)} Failed to execute command due to parameter conversion errors:");
 			foreach (var (command, error) in failedCommands)
 			{
 				string assemblyInfo = command.Assembly.GetName().Name;
-				ctx.Reply($"  - {command.Attribute.Id} ({assemblyInfo}): {error}");
+				sb.AppendLine($"  - {command.Attribute.Name} ({assemblyInfo}): {error}");
 			}
+			ctx.SysPaginatedReply(sb);
 			return CommandResult.UsageError;
 		}
 
@@ -183,17 +297,19 @@ public static class CommandRegistry
 		// Case 3: Multiple commands succeeded - store and ask user to select
 		_pendingCommands[ctx.Name] = successfulCommands;
 
-		var sb = new StringBuilder();
-		sb.AppendLine($"Multiple commands match this input. Select one by typing {B(".<#>").Color(Color.Command)}:");
-		for (int i = 0; i < successfulCommands.Count; i++)
 		{
-			var (command, _, _) = successfulCommands[i];
-			var cmdAssembly = command.Assembly.GetName().Name;
-			var description = command.Attribute.Description;
-			sb.AppendLine($" {("."+ (i + 1).ToString()).Color(Color.Command)} - {cmdAssembly.Bold().Color(Color.Primary)} - {B(command.Attribute.Name)} ({command.Attribute.Id}) {command.Attribute.Description}");
-			sb.AppendLine("   " + HelpCommands.GetShortHelp(command));
+			var sb = new StringBuilder();
+			sb.AppendLine($"Multiple commands match this input. Select one by typing {B(".<#>").Color(Color.Command)}:");
+			for (int i = 0; i < successfulCommands.Count; i++)
+			{
+				var (command, _, _) = successfulCommands[i];
+				var cmdAssembly = command.Assembly.GetName().Name;
+				var description = command.Attribute.Description;
+				sb.AppendLine($" {("." + (i + 1).ToString()).Color(Color.Command)} - {cmdAssembly.Bold().Color(Color.Primary)} - {B(command.Attribute.Name)} {command.Attribute.Description}");
+				sb.AppendLine("   " + HelpCommands.GetShortHelp(command));
+			}
+			ctx.SysPaginatedReply(sb);
 		}
-		ctx.SysPaginatedReply(sb);
 
 		return CommandResult.Success;
 	}
@@ -204,13 +320,13 @@ public static class CommandRegistry
 	{
 		if (!_pendingCommands.TryGetValue(ctx.Name, out var pendingCommands) || pendingCommands.Count == 0)
 		{
-			ctx.Reply($"{"[error]".Color(Color.Red)} No command selection is pending.");
+			ctx.SysReply($"{"[error]".Color(Color.Red)} No command selection is pending.");
 			return CommandResult.CommandError;
 		}
 
 		if (selectedIndex < 1 || selectedIndex > pendingCommands.Count)
 		{
-			ctx.Reply($"{"[error]".Color(Color.Red)} Invalid selection. Please select a number between 1 and {pendingCommands.Count}.");
+			ctx.SysReply($"{"[error]".Color(Color.Red)} Invalid selection. Please select a number between {"1".Color(Color.Gold)} and {pendingCommands.Count.ToString().Color(Color.Gold)}.");
 			return CommandResult.UsageError;
 		}
 
@@ -238,14 +354,14 @@ public static class CommandRegistry
 		// Handle parameter count mismatch
 		if (argCount > paramsCount)
 		{
-			return (false, null, $"Too many parameters: expected {paramsCount}, got {argCount}");
+			return (false, null, $"Too many parameters: expected {paramsCount.ToString().Color(Color.Gold)}, got {argCount.ToString().Color(Color.Gold)}");
 		}
 		else if (argCount < paramsCount)
 		{
 			var canDefault = command.Parameters.Skip(argCount).All(p => p.HasDefaultValue);
 			if (!canDefault)
 			{
-				return (false, null, $"Missing required parameters: expected {paramsCount}, got {argCount}");
+				return (false, null, $"Missing required parameters: expected {paramsCount.ToString().Color(Color.Gold)}, got {argCount.ToString().Color(Color.Gold)}");
 			}
 			for (var i = argCount; i < paramsCount; i++)
 			{
@@ -274,7 +390,7 @@ public static class CommandRegistry
 						if (!converterContextType.IsAssignableFrom(ctx.GetType()))
 						{
 							// Signal internal error with a special return format
-							return (false, null, $"INTERNAL_ERROR:Converter type {converterContextType.Name} is not assignable from {ctx.GetType().Name}");
+							return (false, null, $"INTERNAL_ERROR:Converter type {converterContextType.Name.ToString().Color(Color.Gold)} is not assignable from {ctx.GetType().Name.ToString().Color(Color.Gold)}");
 						}
 
 						object result;
@@ -289,16 +405,16 @@ public static class CommandRegistry
 						{
 							if (tie.InnerException is CommandException e)
 							{
-								conversionError = $"Parameter {i + 1} ({param.Name}): {e.Message}";
+								conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}";
 							}
 							else
 							{
-								conversionError = $"Parameter {i + 1} ({param.Name}): Unexpected error converting parameter";
+								conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter";
 							}
 						}
 						catch (Exception)
 						{
-							conversionError = $"Parameter {i + 1} ({param.Name}): Unexpected error converting parameter";
+							conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter";
 						}
 					}
 					else
@@ -320,7 +436,7 @@ public static class CommandRegistry
 
 									if (!isDefined)
 									{
-										return (false, null, $"Parameter {i + 1} ({param.Name}): Invalid enum value '{arg}' for {param.ParameterType.Name}");
+										return (false, null, $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Invalid enum value '{arg.ToString().Color(Color.Gold)}' for {param.ParameterType.Name.ToString().Color(Color.Gold)}");
 									}
 								}
 							}
@@ -330,13 +446,13 @@ public static class CommandRegistry
 						}
 						catch (Exception e)
 						{
-							conversionError = $"Parameter {i + 1} ({param.Name}): {e.Message}";
+							conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}";
 						}
 					}
 				}
 				catch (Exception ex)
 				{
-					conversionError = $"Parameter {i + 1} ({param.Name}): Unexpected error: {ex.Message}";
+					conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error: {ex.Message}";
 				}
 
 				if (!conversionSuccess)
@@ -354,7 +470,7 @@ public static class CommandRegistry
 		// Handle Context Type not matching command
 		if (!command.ContextType.IsAssignableFrom(ctx?.GetType()))
 		{
-			Log.Warning($"Matched [{command.Attribute.Id}] but can not assign {command.ContextType.Name} from {ctx?.GetType().Name}");
+			Log.Warning($"Matched [{command.Attribute.Name.ToString().Color(Color.Gold)}] but can not assign {command.ContextType.Name.ToString().Color(Color.Gold)} from {ctx?.GetType().Name.ToString().Color(Color.Gold)}");
 			return CommandResult.InternalError;
 		}
 
@@ -371,7 +487,7 @@ public static class CommandRegistry
 				return CommandResult.InternalError;
 			}
 
-			ctx.Reply($"{"[error]".Color(Color.Red)} {error}");
+			ctx.SysReply($"{"[error]".Color(Color.Red)} {error}");
 			return CommandResult.UsageError;
 		}
 
@@ -383,14 +499,14 @@ public static class CommandRegistry
 		// Handle Context Type not matching command
 		if (!command.ContextType.IsAssignableFrom(ctx?.GetType()))
 		{
-			Log.Warning($"Matched [{command.Attribute.Id}] but can not assign {command.ContextType.Name} from {ctx?.GetType().Name}");
+			Log.Warning($"Matched [{command.Attribute.Name.ToString().Color(Color.Gold)}] but can not assign {command.ContextType.Name.ToString().Color(Color.Gold)} from {ctx?.GetType().Name.ToString().Color(Color.Gold)}");
 			return CommandResult.InternalError;
 		}
 
 		// Then handle this invocation's context not being valid for the command classes custom constructor
 		if (command.Constructor != null && !command.ConstructorType.IsAssignableFrom(ctx?.GetType()))
 		{
-			Log.Warning($"Matched [{command.Attribute.Id}] but can not assign {command.ConstructorType.Name} from {ctx?.GetType().Name}");
+			Log.Warning($"Matched [{command.Attribute.Name.ToString().Color(Color.Gold)}] but can not assign {command.ConstructorType.Name.ToString().Color(Color.Gold)} from {ctx?.GetType().Name.ToString().Color(Color.Gold)}");
 			ctx.InternalError();
 			return CommandResult.InternalError;
 		}
@@ -421,7 +537,7 @@ public static class CommandRegistry
 		// Handle Middlewares
 		if (!CanCommandExecute(ctx, command))
 		{
-			ctx.Reply($"{"[denied]".Color(Color.Red)} {command.Attribute.Id}");
+			ctx.SysReply($"{"[denied]".Color(Color.Red)} {command.Attribute.Name.ToString().Color(Color.Gold)}");
 			return CommandResult.Denied;
 		}
 
@@ -434,12 +550,12 @@ public static class CommandRegistry
 		}
 		catch (TargetInvocationException tie) when (tie.InnerException is CommandException e)
 		{
-			ctx.Reply($"{"[error]".Color(Color.Red)} {e.Message}");
+			ctx.SysReply($"{"[error]".Color(Color.Red)} {e.Message}");
 			return CommandResult.CommandError;
 		}
 		catch (Exception e)
 		{
-			Log.Warning($"Hit unexpected exception executing command {command.Attribute.Id}\n: {e}");
+			Log.Warning($"Hit unexpected exception executing command {command.Attribute.Id.ToString().Color(Color.Gold)}\n: {e}");
 			ctx.InternalError();
 			return CommandResult.InternalError;
 		}
@@ -460,7 +576,7 @@ public static class CommandRegistry
 		var convertFrom = args.FirstOrDefault();
 		if (convertFrom == null)
 		{
-			Log.Warning($"Could not resolve converter type {converter.Name}");
+			Log.Warning($"Could not resolve converter type {converter.Name.ToString().Color(Color.Gold)}");
 			return;
 		}
 
@@ -471,7 +587,7 @@ public static class CommandRegistry
 		}
 		else
 		{
-			Log.Warning($"Call to UnregisterConverter for a converter that was not registered. Type: {converter.Name}");
+			Log.Warning($"Call to UnregisterConverter for a converter that was not registered. Type: {converter.Name.ToString().Color(Color.Gold)}");
 		}
 	}
 
@@ -573,7 +689,7 @@ public static class CommandRegistry
 		var first = paramInfos.FirstOrDefault();
 		if (first == null || first.ParameterType is ICommandContext)
 		{
-			Log.Error($"Method {method.Name} has no CommandContext as first argument");
+			Log.Error($"Method {method.Name.ToString().Color(Color.Gold)} has no CommandContext as first argument");
 			return;
 		}
 
@@ -583,7 +699,7 @@ public static class CommandRegistry
 		{
 			if (_converters.ContainsKey(param.ParameterType))
 			{
-				Log.Debug($"Method {method.Name} has a parameter of type {param.ParameterType.Name} which is registered as a converter");
+				Log.Debug($"Method {method.Name.ToString().Color(Color.Gold)} has a parameter of type {param.ParameterType.Name.ToString().Color(Color.Gold)} which is registered as a converter");
 				return true;
 			}
 
@@ -591,7 +707,7 @@ public static class CommandRegistry
 			if (converter == null ||
 				!converter.CanConvertFrom(typeof(string)))
 			{
-				Log.Warning($"Parameter {param.Name} could not be converted, so {method.Name} will be ignored.");
+				Log.Warning($"Parameter {param.Name.ToString().Color(Color.Gold)} could not be converted, so {method.Name.ToString().Color(Color.Gold)} will be ignored.");
 				return false;
 			}
 
