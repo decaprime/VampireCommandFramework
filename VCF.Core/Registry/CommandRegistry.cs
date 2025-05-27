@@ -36,7 +36,10 @@ public static class CommandRegistry
 	public static List<CommandMiddleware> Middlewares { get; } = new() { new VCF.Core.Basics.BasicAdminCheck() };
 
 	// Store pending commands for selection
-	private static Dictionary<string, List<(CommandMetadata Command, object[] Args, string Error)>> _pendingCommands = [];
+	private static Dictionary<string, (string input, List<(CommandMetadata Command, object[] Args, string Error)> commands)> _pendingCommands = [];
+
+	private static Dictionary<string, List<(string input, CommandMetadata Command, object[] Args)>> _commandHistory = new();
+	private const int MAX_COMMAND_HISTORY = 10; // Store up to 10 past commands
 
 	internal static bool CanCommandExecute(ICommandContext ctx, CommandMetadata command)
 	{
@@ -200,6 +203,12 @@ public static class CommandRegistry
 			return CommandResult.Unmatched; // Not a command
 		}
 
+		if (input.Trim().StartsWith(".!"))
+		{
+			HandleCommandHistory(ctx, input.Trim());
+			return CommandResult.Success;
+		}
+
 		// Remove the prefix for processing
 		string afterPrefix = input.Substring(DEFAULT_PREFIX.Length);
 
@@ -251,7 +260,7 @@ public static class CommandRegistry
 		// If there's only one command, handle it directly
 		if (commands.Count() == 1)
 		{
-			return ExecuteCommand(ctx, commands.First(), args);
+			return ExecuteCommand(ctx, commands.First(), args, input);
 		}
 
 		// Multiple commands match, try to convert parameters for each
@@ -291,11 +300,12 @@ public static class CommandRegistry
 		if (successfulCommands.Count == 1)
 		{
 			var (command, commandArgs, _) = successfulCommands[0];
+			AddToCommandHistory(ctx.Name, input, command, commandArgs);
 			return ExecuteCommandWithArgs(ctx, command, commandArgs);
 		}
 
 		// Case 3: Multiple commands succeeded - store and ask user to select
-		_pendingCommands[ctx.Name] = successfulCommands;
+		_pendingCommands[ctx.Name] = (input, successfulCommands);
 
 		{
 			var sb = new StringBuilder();
@@ -318,23 +328,23 @@ public static class CommandRegistry
 
 	private static CommandResult HandleCommandSelection(ICommandContext ctx, int selectedIndex)
 	{
-		if (!_pendingCommands.TryGetValue(ctx.Name, out var pendingCommands) || pendingCommands.Count == 0)
+		if (!_pendingCommands.TryGetValue(ctx.Name, out var pendingCommands) || pendingCommands.commands.Count == 0)
 		{
 			ctx.SysReply($"{"[error]".Color(Color.Red)} No command selection is pending.");
 			return CommandResult.CommandError;
 		}
 
-		if (selectedIndex < 1 || selectedIndex > pendingCommands.Count)
+		if (selectedIndex < 1 || selectedIndex > pendingCommands.commands.Count)
 		{
-			ctx.SysReply($"{"[error]".Color(Color.Red)} Invalid selection. Please select a number between {"1".Color(Color.Gold)} and {pendingCommands.Count.ToString().Color(Color.Gold)}.");
+			ctx.SysReply($"{"[error]".Color(Color.Red)} Invalid selection. Please select a number between {"1".Color(Color.Gold)} and {pendingCommands.commands.Count.ToString().Color(Color.Gold)}.");
 			return CommandResult.UsageError;
 		}
 
-		var (command, args, _) = pendingCommands[selectedIndex - 1];
+		var (command, args, _) = pendingCommands.commands[selectedIndex - 1];
 
-		// Clear pending commands after selection
+		AddToCommandHistory(ctx.Name, pendingCommands.input, command, args);
 		var result = ExecuteCommandWithArgs(ctx, command, args);
-		pendingCommands.Clear();
+		_pendingCommands.Remove(ctx.Name);
 		return result;
 	}
 
@@ -465,7 +475,7 @@ public static class CommandRegistry
 		return (true, commandArgs, null);
 	}
 
-	private static CommandResult ExecuteCommand(ICommandContext ctx, CommandMetadata command, string[] args)
+	private static CommandResult ExecuteCommand(ICommandContext ctx, CommandMetadata command, string[] args, string input)
 	{
 		// Handle Context Type not matching command
 		if (!command.ContextType.IsAssignableFrom(ctx?.GetType()))
@@ -491,6 +501,7 @@ public static class CommandRegistry
 			return CommandResult.UsageError;
 		}
 
+		AddToCommandHistory(ctx.Name, input, command, commandArgs);
 		return ExecuteCommandWithArgs(ctx, command, commandArgs);
 	}
 
@@ -563,6 +574,74 @@ public static class CommandRegistry
 		HandleAfterExecute(ctx, command);
 
 		return CommandResult.Success;
+	}
+
+	private static void AddToCommandHistory(string contextName, string input, CommandMetadata command, object[] args)
+	{
+		// Create the history list for this context if it doesn't exist yet
+		if (!_commandHistory.TryGetValue(contextName, out var history))
+		{
+			history = new List<(string input, CommandMetadata Command, object[] Args)>();
+			_commandHistory[contextName] = history;
+		}
+
+		// Add the new command to the beginning of the list
+		history.Insert(0, (input, command, args));
+
+		// Keep only the most recent MAX_COMMAND_HISTORY commands
+		if (history.Count > MAX_COMMAND_HISTORY)
+		{
+			history.RemoveAt(history.Count - 1);
+		}
+	}
+
+	private static void HandleCommandHistory(ICommandContext ctx, string input)
+	{
+		// Remove the ".!" prefix
+		string command = input.Substring(2).Trim();
+
+		// Check if the command history exists for this context
+		if (!_commandHistory.TryGetValue(ctx.Name, out var history) || history.Count == 0)
+		{
+			ctx.SysReply($"{"[error]".Color(Color.Red)} No command history available.");
+			return;
+		}
+
+		// Handle .! list or .! l commands
+		if (command == "list" || command == "l")
+		{
+			var sb = new StringBuilder();
+			sb.AppendLine("Command history:");
+
+			for (int i = 0; i < history.Count; i++)
+			{
+				sb.AppendLine($"{(i + 1).ToString().Color(Color.Gold)}. {history[i].input.Color(Color.Command)}");
+			}
+
+			ctx.SysPaginatedReply(sb);
+			return;
+		}
+
+		// Handle .! # to execute a specific command by number
+		if (int.TryParse(command, out int index) && index > 0 && index <= history.Count)
+		{
+			var selectedCommand = history[index - 1];
+			ctx.SysReply($"Executing command {index.ToString().Color(Color.Gold)}: {selectedCommand.input.Color(Color.Command)}");
+			ExecuteCommandWithArgs(ctx, selectedCommand.Command, selectedCommand.Args);
+			return;
+		}
+
+		// If just .! is provided, execute the most recent command
+		if (string.IsNullOrWhiteSpace(command))
+		{
+			var mostRecent = history[0];
+			ctx.SysReply($"Repeating most recent command: {mostRecent.input.Color(Color.Command)}");
+			ExecuteCommandWithArgs(ctx, mostRecent.Command, mostRecent.Args);
+			return;
+		}
+
+		// Invalid command
+		ctx.SysReply($"{"[error]".Color(Color.Red)} Invalid command history selection. Use {".! list".Color(Color.Command)} to see available commands or {".! #".Color(Color.Command)} to execute a specific command.");
 	}
 
 	public static void UnregisterConverter(Type converter)
