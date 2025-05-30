@@ -91,6 +91,8 @@ All commands execute through a middleware pipeline. You can add your own middlew
 
 Middleware is perfect for implementing permissions and roles, cooldowns, logging, command costs, rate limiting, and other cross-cutting concerns that should apply across commands even from other VCF plugins.
 
+ [V Roles](https://github.com/Odjit/VRoles) is an example of a Middleware plugin for VCF that adds in roles that commands and users can get assigned.
+
 Example middleware:
 ```csharp
 public class CooldownMiddleware : CommandMiddleware
