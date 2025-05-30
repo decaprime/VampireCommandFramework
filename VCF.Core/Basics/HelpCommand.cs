@@ -77,7 +77,7 @@ internal static class HelpCommands
 
 		void GenerateFullHelp(CommandMetadata command, List<string> aliases, StringBuilder sb)
 		{
-			sb.AppendLine($"{B(command.Attribute.Name).Color(Color.LightRed)} {command.Attribute.Description.Color(Color.Grey)}");
+			sb.AppendLine($"{B(command.Attribute.Name).Color(Color.LightRed)} {command.Attribute.Description.Color(Color.SoftBGrey)}");
 			sb.AppendLine(GetShortHelp(command));
 			sb.AppendLine($"{B("Aliases").Underline().Color(Color.Pink)}: {string.Join(", ", aliases).Italic()}");
 
@@ -163,7 +163,7 @@ internal static class HelpCommands
 			var usages = command.Parameters.Select(
 				p => !p.HasDefaultValue
 					? $"({p.Name})".Color(Color.LightGrey) // todo could compress this for the cases with no defaulting
-					: $"[{p.Name}={p.DefaultValue}]".Color(Color.DarkGreen)
+					: $"[{p.Name}={p.DefaultValue}]".Color(Color.Green)
 			);
 
 			usageText = string.Join(" ", usages);
