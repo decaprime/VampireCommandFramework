@@ -19,7 +19,7 @@ public static class CommandRegistry
 	/// <summary>
 	/// From converting type to (object instance, MethodInfo tryParse, Type contextType)
 	/// </summary>
-	internal static Dictionary<Type, (object instance, MethodInfo tryParse, Type contextType)> _converters = [];
+	internal static Dictionary<Type, (object instance, MethodInfo tryParse, Type contextType)> _converters = new();
 
 	internal static void Reset()
 	{
@@ -36,7 +36,7 @@ public static class CommandRegistry
 	public static List<CommandMiddleware> Middlewares { get; } = new() { new VCF.Core.Basics.BasicAdminCheck() };
 
 	// Store pending commands for selection
-	private static Dictionary<string, (string input, List<(CommandMetadata Command, object[] Args, string Error)> commands)> _pendingCommands = [];
+	private static Dictionary<string, (string input, List<(CommandMetadata Command, object[] Args, string Error)> commands)> _pendingCommands = new();
 
 	private static Dictionary<string, List<(string input, CommandMetadata Command, object[] Args)>> _commandHistory = new();
 	private const int MAX_COMMAND_HISTORY = 10; // Store up to 10 past commands
@@ -94,13 +94,13 @@ public static class CommandRegistry
 			{
 				// Get all possible combinations of group and command names
 				var groupNames = cmd.GroupAttribute == null
-					? [""]
+					? new[] { "" }
 					: cmd.GroupAttribute.ShortHand == null
-						? [cmd.GroupAttribute.Name + " "]
+						? new[] { cmd.GroupAttribute.Name + " " }
 						: new[] { cmd.GroupAttribute.Name + " ", cmd.GroupAttribute.ShortHand + " " };
 
 				var commandNames = cmd.Attribute.ShortHand == null
-					? [cmd.Attribute.Name]
+					? new[] { cmd.Attribute.Name }
 					: new[] { cmd.Attribute.Name, cmd.Attribute.ShortHand };
 
 				return groupNames.SelectMany(group =>
