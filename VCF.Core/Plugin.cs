@@ -1,4 +1,4 @@
-﻿using BepInEx;
+using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
 
@@ -25,6 +25,7 @@ internal class Plugin : BasePlugin
 
 		CommandRegistry.RegisterCommandType(typeof(Basics.HelpCommands));
 		CommandRegistry.RegisterCommandType(typeof(Basics.BepInExConfigCommands));
+		CommandRegistry.RegisterCommandType(typeof(Basics.RepeatCommands));
 
 
 		IL2CPPChainloader.Instance.Plugins.TryGetValue(PluginInfo.PLUGIN_GUID, out var info);

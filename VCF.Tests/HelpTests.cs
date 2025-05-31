@@ -29,6 +29,13 @@ public class HelpTests
 		{
 
 		}
+
+
+		[Command("searchForCommand")]
+		public void TestSearchForCommand(ICommandContext ctx)
+		{
+
+		}
 	}
 
 	[SetUp]
@@ -48,14 +55,13 @@ public class HelpTests
 	}
 
 	[Test]
-	public void HelpCommand_Help_ListsAll()
+	public void HelpCommand_Help_ListsAssemblies()
 	{
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".help"), Is.EqualTo(CommandResult.Success));
 		AnyCtx.AssertReply($"""
-			[vcf] Listing all commands
-			Commands from VampireCommandFramework:
-			.help-legacy [search=]
-			.help [search=]
+			[vcf] Listing all plugins
+			Use .help <plugin> for commands in that plugin
+			VampireCommandFramework
 			""");
 	}
 
@@ -65,8 +71,9 @@ public class HelpTests
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".help VampireCommandFramework"), Is.EqualTo(CommandResult.Success));
 		AnyCtx.AssertReply($"""
 			[vcf] Commands from VampireCommandFramework:
+			.help [search=] [filter=]
+			.help-all [filter=]
 			.help-legacy [search=]
-			.help [search=]
 			""");
 	}
 
@@ -75,7 +82,7 @@ public class HelpTests
 	{
 		Assert.That(CommandRegistry.Handle(AnyCtx, ".help help-legacy"), Is.EqualTo(CommandResult.Success));
 		AnyCtx.AssertReply($"""
-			[vcf] help-legacy (help-legacy) Passes through a .help command that is compatible with other mods that don't use VCF.
+			[vcf] help-legacy Passes through a .help command that is compatible with other mods that don't use VCF.
 			.help-legacy [search=]
 			Aliases: .help-legacy
 			""");
@@ -87,14 +94,58 @@ public class HelpTests
 		CommandRegistry.RegisterConverter(typeof(SomeTypeConverter));
 		CommandRegistry.RegisterCommandType(typeof(HelpTestCommands));
 
-		Assert.That(CommandRegistry.Handle(AnyCtx, ".help"), Is.EqualTo(CommandResult.Success));
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help-all"), Is.EqualTo(CommandResult.Success));
 		AnyCtx.AssertReply($"""
 			[vcf] Listing all commands
 			Commands from VampireCommandFramework:
+			.help [search=] [filter=]
+			.help-all [filter=]
 			.help-legacy [search=]
-			.help [search=]
+			Commands from VCF.Tests:
+			.searchForCommand
+			.test-help (someEnum) [someType=]
+			""");
+	}
+
+	[Test]
+	public void HelpCommand_Help_ListAll_Filtered()
+	{
+		CommandRegistry.RegisterConverter(typeof(SomeTypeConverter));
+		CommandRegistry.RegisterCommandType(typeof(HelpTestCommands));
+
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help-all help"), Is.EqualTo(CommandResult.Success));
+		AnyCtx.AssertReply($"""
+			[vcf] Listing all commands matching filter 'help'
+			Commands from VampireCommandFramework:
+			.help [search=] [filter=]
+			.help-all [filter=]
+			.help-legacy [search=]
 			Commands from VCF.Tests:
 			.test-help (someEnum) [someType=]
+			""");
+	}
+
+	[Test]
+	public void HelpCommand_Help_ListAll_FilteredNoMatch()
+	{
+		CommandRegistry.RegisterConverter(typeof(SomeTypeConverter));
+		CommandRegistry.RegisterCommandType(typeof(HelpTestCommands));
+
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help-all trying"), Is.EqualTo(CommandResult.CommandError));
+	}
+
+	[Test]
+	public void HelpCommand_Help_ListAssemblies_IncludesNewCommands()
+	{
+		CommandRegistry.RegisterConverter(typeof(SomeTypeConverter));
+		CommandRegistry.RegisterCommandType(typeof(HelpTestCommands));
+
+		Assert.That(CommandRegistry.Handle(AnyCtx, ".help"), Is.EqualTo(CommandResult.Success));
+		AnyCtx.AssertReply($"""
+			[vcf] Listing all plugins
+			Use .help <plugin> for commands in that plugin
+			VampireCommandFramework
+			VCF.Tests
 			""");
 	}
 
@@ -103,8 +154,8 @@ public class HelpTests
 	{
 		var (commandName, usage, description) = Any.ThreeStrings();
 
-		var command = new CommandMetadata(new CommandAttribute(commandName, usage: usage, description: description), null, null, null, null, null, null);
-		var text = HelpCommands.PrintShortHelp(command);
+		var command = new CommandMetadata(new CommandAttribute(commandName, null, usage: usage, description: description), null, null, null, null, null, null, null);
+		var text = HelpCommands.GetShortHelp(command);
 		Assert.That(text, Is.EqualTo($".{commandName} {usage}"));
 	}
 
@@ -116,9 +167,9 @@ public class HelpTests
 		var paramName = Any.String();
 		A.CallTo(() => param.Name).Returns(paramName);
 
-		var command = new CommandMetadata(new CommandAttribute(commandName, usage: null, description: description), null, null, new[] { param }, null, null, null);
+		var command = new CommandMetadata(new CommandAttribute(commandName, null, usage: null, description: description), null, null, null, new[] { param }, null, null, null);
 
-		var text = HelpCommands.PrintShortHelp(command);
+		var text = HelpCommands.GetShortHelp(command);
 
 		Assert.That(text, Is.EqualTo($".{commandName} ({paramName})"));
 	}
@@ -134,9 +185,9 @@ public class HelpTests
 		A.CallTo(() => param.DefaultValue).Returns(paramValue);
 		A.CallTo(() => param.HasDefaultValue).Returns(true);
 
-		var command = new CommandMetadata(new CommandAttribute(commandName, usage: null, description: description), null, null, new[] { param }, null, null, null);
+		var command = new CommandMetadata(new CommandAttribute(commandName, usage: null, description: description), null, null, null, new[] { param }, null, null, null);
 
-		var text = HelpCommands.PrintShortHelp(command);
+		var text = HelpCommands.GetShortHelp(command);
 
 		Assert.That(text, Is.EqualTo($".{commandName} [{paramName}={paramValue}]"));
 	}
@@ -163,5 +214,19 @@ public class HelpTests
 		Format.Mode = Format.FormatMode.None;
 		Assert.That(CommandRegistry.Handle(ctx, ".help test-help"), Is.EqualTo(CommandResult.Success));
 		ctx.AssertReplyContains("SomeEnum Values: A, B, C");
+	}
+
+	[Test]
+
+	public void SpecifiedAssemblyAndSearchedForCommand()
+	{
+		CommandRegistry.RegisterConverter(typeof(SomeTypeConverter));
+		CommandRegistry.RegisterCommandType(typeof(HelpTestCommands));
+
+		var ctx = new AssertReplyContext();
+		Format.Mode = Format.FormatMode.None;
+		Assert.That(CommandRegistry.Handle(ctx, ".help vcf.tests seaRCH"), Is.EqualTo(CommandResult.Success));
+		ctx.AssertReplyContains("searchForCommand");
+		ctx.AssertReplyDoesntContain("test-help");
 	}
 }
