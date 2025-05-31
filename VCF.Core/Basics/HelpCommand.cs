@@ -19,7 +19,7 @@ internal static class HelpCommands
 	public static void HelpLegacy(ICommandContext ctx, string search = null) => ctx.SysReply($"Attempting compatible .help {search} for non-VCF mods.");
 
 	[Command("help")]
-	public static void HelpCommand(ICommandContext ctx, string search = null)
+	public static void HelpCommand(ICommandContext ctx, string search = null, string filter = null)
 	{
 		// If search is specified first look for matching assembly, then matching command
 		if (!string.IsNullOrEmpty(search))
@@ -28,7 +28,7 @@ internal static class HelpCommands
 			if (foundAssembly.Value != null)
 			{
 				StringBuilder sb = new();
-				PrintAssemblyHelp(ctx, foundAssembly, sb);
+				PrintAssemblyHelp(ctx, foundAssembly, sb, filter);
 				ctx.SysPaginatedReply(sb);
 			}
 			else
@@ -38,14 +38,17 @@ internal static class HelpCommands
 				var individualResults = commands.Where(x =>
 					string.Equals(x.Key.Attribute.Id, search, StringComparison.InvariantCultureIgnoreCase)
 					|| string.Equals(x.Key.Attribute.Name, search, StringComparison.InvariantCultureIgnoreCase)
+					|| (x.Key.GroupAttribute != null && string.Equals(x.Key.GroupAttribute.Name, search, StringComparison.InvariantCultureIgnoreCase))
 					|| x.Value.Contains(search, StringComparer.InvariantCultureIgnoreCase)
 				);
 
-				individualResults = individualResults.Where(kvp => CommandRegistry.CanCommandExecute(ctx, kvp.Key));
+				individualResults = individualResults.Where(kvp => CommandRegistry.CanCommandExecute(ctx, kvp.Key))
+					                                 .Where(kvp => filter == null ||
+													               kvp.Key.Attribute.Name.Contains(filter, StringComparison.InvariantCultureIgnoreCase));
 
 				if (!individualResults.Any())
 				{
-					throw ctx.Error($"Could not find any commands for \"{search}\"");
+					throw ctx.Error($"Could not find any commands for \"{search.Color(Color.Gold)}\"");
 				}
 
 				var sb = new StringBuilder();
@@ -60,39 +63,29 @@ internal static class HelpCommands
 		else
 		{
 			var sb = new StringBuilder();
-			sb.AppendLine($"Listing {B("all")} commands");
-			foreach (var assembly in CommandRegistry.AssemblyCommandMap)
+			sb.AppendLine($"Listing {B("all")} plugins");
+			sb.AppendLine($"Use {B(".help <plugin>").Color(Color.Gold)} for commands in that plugin");
+			// List all plugins they have a command they can execute for
+			foreach (var assemblyName in CommandRegistry.AssemblyCommandMap.Where(x => x.Value.Keys.Any(c => CommandRegistry.CanCommandExecute(ctx, c)))
+																		   .Select(x => x.Key.GetName().Name)
+																		   .OrderBy(x => x))
 			{
-				PrintAssemblyHelp(ctx, assembly, sb);
+				sb.AppendLine($"{assemblyName.Color(Color.Lilac)}");
 			}
 			ctx.SysPaginatedReply(sb);
 		}
 
-		void PrintAssemblyHelp(ICommandContext ctx, KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb)
-		{
-			var name = assembly.Key.GetName().Name;
-			name = _trailingLongDashRegex.Replace(name, "");
-
-			sb.AppendLine($"Commands from {name.Medium().Color(Color.Primary)}:".Underline());
-			var commands = assembly.Value.Keys.Where(c => CommandRegistry.CanCommandExecute(ctx, c));
-
-			foreach (var command in commands)
-			{
-				sb.AppendLine(PrintShortHelp(command));
-			}
-		}
-
 		void GenerateFullHelp(CommandMetadata command, List<string> aliases, StringBuilder sb)
 		{
-			sb.AppendLine($"{B(command.Attribute.Name)} ({command.Attribute.Id}) {command.Attribute.Description}");
-			sb.AppendLine(PrintShortHelp(command));
-			sb.AppendLine($"{B("Aliases").Underline()}: {string.Join(", ", aliases).Italic()}");
+			sb.AppendLine($"{B(command.Attribute.Name).Color(Color.LightRed)} {command.Attribute.Description.Color(Color.SoftBGrey)}");
+			sb.AppendLine(GetShortHelp(command));
+			sb.AppendLine($"{B("Aliases").Underline().Color(Color.Pink)}: {string.Join(", ", aliases).Italic()}");
 
 			// Automatically Display Enum types
 			var enums = command.Parameters.Select(p => p.ParameterType).Distinct().Where(t => t.IsEnum);
 			foreach (var e in enums)
 			{
-				sb.AppendLine($"{Format.Bold($"{e.Name} Values").Underline()}: {string.Join(", ", Enum.GetNames(e))}");
+				sb.AppendLine($"{Format.Bold($"{e.Name} Values").Underline().Color(Color.Pink)}: {string.Join(", ", Enum.GetNames(e)).Color(Color.Command)}");
 			}
 
 			// Check CommandRegistry for types that can be converted and further for IConverterUsage
@@ -108,7 +101,47 @@ internal static class HelpCommands
 		}
 	}
 
-	internal static string PrintShortHelp(CommandMetadata command)
+	[Command("help-all", description: "Returns all plugin commands")]
+	public static void HelpAllCommand(ICommandContext ctx, string filter = null)
+	{
+		var sb = new StringBuilder();
+		if (filter == null)
+			sb.AppendLine($"Listing {B("all")} commands");
+		else
+			sb.AppendLine($"Listing {B("all")} commands matching filter '{filter}'");
+		
+		var foundAnything = false;
+		foreach (var assembly in CommandRegistry.AssemblyCommandMap.Where(x => x.Value.Keys.Any(c => CommandRegistry.CanCommandExecute(ctx, c) &&
+																										 (filter == null ||
+																										  GetShortHelp(c).Contains(filter, StringComparison.InvariantCultureIgnoreCase)))))
+		{
+			PrintAssemblyHelp(ctx, assembly, sb, filter);
+			foundAnything = true;
+		}
+
+		if (!foundAnything)
+			throw ctx.Error($"Could not find any commands for \"{filter}\"");
+
+		ctx.SysPaginatedReply(sb);
+	}
+
+	static void PrintAssemblyHelp(ICommandContext ctx, KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb, string filter = null)
+	{
+		var name = assembly.Key.GetName().Name;
+		name = _trailingLongDashRegex.Replace(name, "");
+
+		sb.AppendLine($"Commands from {name.Medium().Color(Color.Primary)}:".Underline());
+		var commands = assembly.Value.Keys.Where(c => CommandRegistry.CanCommandExecute(ctx, c));
+
+		foreach (var command in commands.OrderBy(c => (c.GroupAttribute != null ? c.GroupAttribute.Name + " " : "") + c.Attribute.Name))
+		{
+			var helpLine = GetShortHelp(command);
+			if (filter == null || helpLine.Contains(filter, StringComparison.InvariantCultureIgnoreCase))
+				sb.AppendLine(helpLine);
+		}
+	}
+
+	internal static string GetShortHelp(CommandMetadata command)
 	{
 		var attr = command.Attribute;
 		var groupPrefix = string.IsNullOrEmpty(command.GroupAttribute?.Name) ? string.Empty : $"{command.GroupAttribute.Name} ";
@@ -118,7 +151,7 @@ internal static class HelpCommands
 		string usageText = GetOrGenerateUsage(command);
 
 		var prefix = CommandRegistry.DEFAULT_PREFIX.Color(Color.Yellow);
-		var commandString = fullCommandName.Color(Color.White);
+		var commandString = fullCommandName.Color(Color.Beige);
 		return $"{prefix}{commandString}{usageText}";
 	}
 
@@ -130,7 +163,7 @@ internal static class HelpCommands
 			var usages = command.Parameters.Select(
 				p => !p.HasDefaultValue
 					? $"({p.Name})".Color(Color.LightGrey) // todo could compress this for the cases with no defaulting
-					: $"[{p.Name}={p.DefaultValue}]".Color(Color.DarkGreen)
+					: $"[{p.Name}={p.DefaultValue}]".Color(Color.Green)
 			);
 
 			usageText = string.Join(" ", usages);

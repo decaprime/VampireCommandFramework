@@ -10,12 +10,12 @@ internal class CommandCache
 {
 	private static Dictionary<Type, HashSet<(string, int)>> _commandAssemblyMap = new();
 
-	private Dictionary<string, Dictionary<int, CommandMetadata>> _newCache = new();
+	// Change dictionary value from CommandMetadata to List<CommandMetadata>
+	internal Dictionary<string, Dictionary<int, List<CommandMetadata>>> _newCache = new();
 
 	internal void AddCommand(string key, ParameterInfo[] parameters, CommandMetadata command)
 	{
 		key = key.ToLowerInvariant();
-
 		var p = parameters.Length;
 		var d = parameters.Where(p => p.HasDefaultValue).Count();
 		if (!_newCache.ContainsKey(key))
@@ -27,12 +27,14 @@ internal class CommandCache
 		for (var i = p - d; i <= p; i++)
 		{
 			_newCache[key] = _newCache.GetValueOrDefault(key, new()) ?? new();
-			if (_newCache[key].ContainsKey(i))
+			if (!_newCache[key].ContainsKey(i))
 			{
-				Log.Warning($"Command {key} has multiple commands with {i} parameters");
-				continue;
+				_newCache[key][i] = new List<CommandMetadata>();
 			}
-			_newCache[key][i] = command;
+
+			// Add new command to the list
+			_newCache[key][i].Add(command);
+
 			var typeKey = command.Method.DeclaringType;
 
 			var usedParams = _commandAssemblyMap.TryGetValue(typeKey, out var existing) ? existing : new();
@@ -44,33 +46,111 @@ internal class CommandCache
 	internal CacheResult GetCommand(string rawInput)
 	{
 		var lowerRawInput = rawInput.ToLowerInvariant();
-		// todo: I think allows for overlap between .foo "bar" and .foo bar <no parameters>
 		List<CommandMetadata> possibleMatches = new();
+		List<CommandMetadata> exactMatches = new();
+
 		foreach (var (key, argCounts) in _newCache)
 		{
 			if (lowerRawInput.StartsWith(key))
 			{
-				// there's no need to inspect the parameters if the next character isn't a space or the end of the string
-				// because it means that this was part of a different prefix token
-				if (lowerRawInput.Length > key.Length && lowerRawInput[key.Length] != ' ')
-				{
-					continue;
-				}
+				// Check if it's an exact match (no additional text) or if the next character is a space
+				bool isExactMatch = lowerRawInput.Length == key.Length;
+				bool hasSpaceAfter = lowerRawInput.Length > key.Length && lowerRawInput[key.Length] == ' ';
 
-				var remainder = rawInput.Substring(key.Length).Trim();
-				var parameters = Utility.GetParts(remainder).ToArray();
-				if (argCounts.TryGetValue(parameters.Length, out var cmd))
+				if (isExactMatch || hasSpaceAfter)
 				{
-					return new CacheResult(cmd, parameters, null);
-				}
-				else
-				{
-					possibleMatches.AddRange(argCounts.Values);
+					string remainder = isExactMatch ? "" : rawInput.Substring(key.Length).Trim();
+					string[] parameters = remainder.Length > 0 ? Utility.GetParts(remainder).ToArray() : Array.Empty<string>();
+
+					if (argCounts.TryGetValue(parameters.Length, out var cmds))
+					{
+						// Add all commands that match the exact parameter count
+						exactMatches.AddRange(cmds);
+
+						// Store the parameters to return
+						if (exactMatches.Count > 0 && parameters.Length > 0)
+						{
+							return new CacheResult(exactMatches, parameters, null);
+						}
+						else
+						{
+							return new CacheResult(exactMatches, Array.Empty<string>(), null);
+						}
+					}
+					else
+					{
+						// Add all possible matches for the command name but different param counts
+						possibleMatches.AddRange(argCounts.Values.SelectMany(x => x));
+					}
 				}
 			}
 		}
 
-		return new CacheResult(null, null, possibleMatches.Distinct());
+		// If we have exact matches but didn't return early
+		if (exactMatches.Count > 0)
+		{
+			return new CacheResult(exactMatches, Array.Empty<string>(), null);
+		}
+
+		// Use the explicit single command constructor with null
+		CommandMetadata nullCommand = null;
+		return new CacheResult(nullCommand, null, possibleMatches.Distinct());
+	}
+
+	// Handle assembly-specific command lookup
+	internal CacheResult GetCommandFromAssembly(string rawInput, string assemblyName)
+	{
+		var lowerRawInput = rawInput.ToLowerInvariant();
+		List<CommandMetadata> possibleMatches = new();
+		List<CommandMetadata> exactMatches = new();
+
+		foreach (var (key, argCounts) in _newCache)
+		{
+			if (lowerRawInput.StartsWith(key))
+			{
+				// Check if it's an exact match (no additional text) or if the next character is a space
+				bool isExactMatch = lowerRawInput.Length == key.Length;
+				bool hasSpaceAfter = lowerRawInput.Length > key.Length && lowerRawInput[key.Length] == ' ';
+
+				if (isExactMatch || hasSpaceAfter)
+				{
+					string remainder = isExactMatch ? "" : rawInput.Substring(key.Length).Trim();
+					string[] parameters = remainder.Length > 0 ? Utility.GetParts(remainder).ToArray() : Array.Empty<string>();
+
+					if (argCounts.TryGetValue(parameters.Length, out var cmds))
+					{
+						// Add all commands that match the exact parameter count and assembly name
+						exactMatches.AddRange(cmds.Where(cmd => cmd.Assembly.GetName().Name.Equals(assemblyName, StringComparison.OrdinalIgnoreCase)));
+
+						// Store the parameters to return
+						if (exactMatches.Count > 0 && parameters.Length > 0)
+						{
+							return new CacheResult(exactMatches, parameters, null);
+						}
+						else
+						{
+							return new CacheResult(exactMatches, Array.Empty<string>(), null);
+						}
+					}
+					else
+					{
+						// Add all possible matches for the command name but different param counts
+						possibleMatches.AddRange(argCounts.Values.SelectMany(x => x)
+							                                     .Where(cmd => cmd.Assembly.GetName().Name.Equals(assemblyName, StringComparison.OrdinalIgnoreCase)));
+					}
+				}
+			}
+		}
+
+		// If we have exact matches but didn't return early
+		if (exactMatches.Count > 0)
+		{
+			return new CacheResult(exactMatches, Array.Empty<string>(), null);
+		}
+
+		// Use the explicit single command constructor with null
+		CommandMetadata nullCommand = null;
+		return new CacheResult(nullCommand, null, possibleMatches.Distinct());
 	}
 
 	internal void RemoveCommandsFromType(Type t)
@@ -85,7 +165,17 @@ internal class CommandCache
 			{
 				continue;
 			}
-			dict.Remove(index);
+
+			if (dict.TryGetValue(index, out var cmdList))
+			{
+				cmdList.RemoveAll(cmd => cmd.Method.DeclaringType == t);
+
+				// If the list is now empty, remove the entry
+				if (cmdList.Count == 0)
+				{
+					dict.Remove(index);
+				}
+			}
 		}
 		_commandAssemblyMap.Remove(t);
 	}
