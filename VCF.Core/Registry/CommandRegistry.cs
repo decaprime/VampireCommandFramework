@@ -233,12 +233,12 @@ public static class CommandRegistry
 		}
 
 		// Get command(s) based on input
-		CacheResult matchedCommand;
+		CacheResult matchedCommand = null;
 		if (assemblyName != null)
 		{
 			matchedCommand = _cache.GetCommandFromAssembly(commandInput, assemblyName);
 		}
-		else
+		if (matchedCommand == null || !matchedCommand.IsMatched)
 		{
 			matchedCommand = _cache.GetCommand(input);
 		}
