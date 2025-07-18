@@ -62,18 +62,12 @@ namespace VCF.Tests
 			// Register the command type normally
 			CommandRegistry.RegisterCommandType(commandType);
 
-			// Get the actual assembly
-			var realAssembly = commandType.Assembly;
+			// Get the actual assembly name
+			var realAssemblyName = commandType.Assembly.GetName().Name;
 
 			// Check if commands were registered for the real assembly
-			if (CommandRegistry.AssemblyCommandMap.TryGetValue(realAssembly, out var commandCache))
+			if (CommandRegistry.AssemblyCommandMap.TryGetValue(realAssemblyName, out var commandCache))
 			{
-				// Create a dynamic assembly with our mock name
-				var asmName = new AssemblyName(mockAssemblyName);
-				var mockAssembly = AssemblyBuilder.DefineDynamicAssembly(
-					asmName,
-					AssemblyBuilderAccess.Run);
-
 				// Create a new command cache for the mock assembly
 				var mockCommandCache = new Dictionary<CommandMetadata, List<string>>();
 
@@ -87,7 +81,7 @@ namespace VCF.Tests
 					{
 						// This command belongs to the commandType we're registering
 						// Move it to the mock assembly
-						var newCommandMetadata = entry.Key with { Assembly = mockAssembly };
+						var newCommandMetadata = entry.Key with { AssemblyName = mockAssemblyName };
 						mockCommandCache[newCommandMetadata] = entry.Value;
 
 						// Update CommandCache
@@ -114,8 +108,8 @@ namespace VCF.Tests
 				}
 
 				// Update the registry with our new caches
-				CommandRegistry.AssemblyCommandMap[mockAssembly] = mockCommandCache;
-				CommandRegistry.AssemblyCommandMap[realAssembly] = newRealCommandCache;
+				CommandRegistry.AssemblyCommandMap[mockAssemblyName] = mockCommandCache;
+				CommandRegistry.AssemblyCommandMap[realAssemblyName] = newRealCommandCache;
 			}
 		}
 

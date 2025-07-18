@@ -222,8 +222,8 @@ public static class CommandRegistry
 			string potentialAssemblyName = afterPrefix.Substring(0, spaceIndex);
 
 			// Check if this could be a valid assembly name
-			bool isValidAssembly = AssemblyCommandMap.Keys.Any(a =>
-				a.GetName().Name.Equals(potentialAssemblyName, StringComparison.OrdinalIgnoreCase));
+			bool isValidAssembly = AssemblyCommandMap.Keys.Any(assemblyName =>
+				assemblyName.Equals(potentialAssemblyName, StringComparison.OrdinalIgnoreCase));
 
 			if (isValidAssembly)
 			{
@@ -289,7 +289,7 @@ public static class CommandRegistry
 			sb.AppendLine($"{"[error]".Color(Color.Red)} Failed to execute command due to parameter conversion errors:");
 			foreach (var (command, error) in failedCommands)
 			{
-				string assemblyInfo = command.Assembly.GetName().Name;
+				string assemblyInfo = command.AssemblyName;
 				sb.AppendLine($"  - {command.Attribute.Name} ({assemblyInfo}): {error}");
 			}
 			ctx.SysPaginatedReply(sb);
@@ -313,7 +313,7 @@ public static class CommandRegistry
 			for (int i = 0; i < successfulCommands.Count; i++)
 			{
 				var (command, _, _) = successfulCommands[i];
-				var cmdAssembly = command.Assembly.GetName().Name;
+				var cmdAssembly = command.AssemblyName;
 				var description = command.Attribute.Description;
 				sb.AppendLine($" {("." + (i + 1).ToString()).Color(Color.Command)} - {cmdAssembly.Bold().Color(Color.Primary)} - {B(command.Attribute.Name)} {command.Attribute.Description}");
 				sb.AppendLine("   " + HelpCommands.GetShortHelp(command));
@@ -797,7 +797,7 @@ public static class CommandRegistry
 
 		var constructorType = customConstructor?.GetParameters().Single().ParameterType;
 
-		var command = new CommandMetadata(commandAttr, assembly, method, customConstructor, parameters, first.ParameterType, constructorType, groupAttr);
+		var command = new CommandMetadata(commandAttr, assembly.GetName().Name, method, customConstructor, parameters, first.ParameterType, constructorType, groupAttr);
 
 		// todo include prefix and group in here, this shoudl be a string match
 		// todo handle collisons here
@@ -817,18 +817,21 @@ public static class CommandRegistry
 			}
 		}
 
-		AssemblyCommandMap.TryGetValue(assembly, out var commandKeyCache);
+		var assemblyName = assembly.GetName().Name;
+		AssemblyCommandMap.TryGetValue(assemblyName, out var commandKeyCache);
 		commandKeyCache ??= new();
 		commandKeyCache[command] = keys;
-		AssemblyCommandMap[assembly] = commandKeyCache;
+		AssemblyCommandMap[assemblyName] = commandKeyCache;
 	}
 
-	internal static Dictionary<Assembly, Dictionary<CommandMetadata, List<string>>> AssemblyCommandMap { get; } = new();
+	internal static Dictionary<string, Dictionary<CommandMetadata, List<string>>> AssemblyCommandMap { get; } = new();
 
 	public static void UnregisterAssembly() => UnregisterAssembly(Assembly.GetCallingAssembly());
 
 	public static void UnregisterAssembly(Assembly assembly)
 	{
+		var assemblyName = assembly.GetName().Name;
+		
 		foreach (var type in assembly.DefinedTypes)
 		{
 			_cache.RemoveCommandsFromType(type);
@@ -838,6 +841,6 @@ public static class CommandRegistry
 			// especially if you're hot reloading either.
 		}
 
-		AssemblyCommandMap.Remove(assembly);
+		AssemblyCommandMap.Remove(assemblyName);
 	}
 }
