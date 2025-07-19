@@ -63,6 +63,14 @@ public static class CommandRegistry
 		return true;
 	}
 
+	internal static bool HasRemainderParameter(CommandMetadata command)
+	{
+		if (command.Parameters.Length == 0) return false;
+		
+		var lastParam = command.Parameters[command.Parameters.Length - 1];
+		return lastParam.Name == "_remainder" && lastParam.ParameterType == typeof(string);
+	}
+
 	internal static IEnumerable<string> FindCloseMatches(ICommandContext ctx, string input)
 	{
 		// Look for the closest matches to the input command
@@ -349,12 +357,14 @@ public static class CommandRegistry
 		return result;
 	}
 
-	private static (bool Success, object[] Args, string Error) TryConvertParameters(ICommandContext ctx, CommandMetadata command, string[] args)
+	private static (bool Success, object[] Args, string Error) TryConvertParameters(ICommandContext ctx, CommandMetadata command, string[] args, string originalInput = null)
 	{
 		var argCount = args?.Length ?? 0;
 		var paramsCount = command.Parameters.Length;
 		var commandArgs = new object[paramsCount + 1];
 		commandArgs[0] = ctx;
+
+		bool hasRemainder = HasRemainderParameter(command);
 
 		// Special case for commands with no parameters
 		if (paramsCount == 0 && argCount == 0)
@@ -362,118 +372,289 @@ public static class CommandRegistry
 			return (true, commandArgs, null);
 		}
 
-		// Handle parameter count mismatch
+		// Handle remainder commands with special logic
+		if (hasRemainder)
+		{
+			return TryConvertParametersWithRemainder(ctx, command, args, originalInput, commandArgs);
+		}
+
+		// Handle parameter count mismatch for non-remainder commands
 		if (argCount > paramsCount)
 		{
 			return (false, null, $"Too many parameters: expected {paramsCount.ToString().Color(Color.Gold)}, got {argCount.ToString().Color(Color.Gold)}");
 		}
-		else if (argCount < paramsCount)
+
+		// Handle missing parameters for non-remainder commands
+		if (argCount < paramsCount)
 		{
-			var canDefault = command.Parameters.Skip(argCount).All(p => p.HasDefaultValue);
+			var missingParams = command.Parameters.Skip(argCount);
+			var canDefault = missingParams.All(p => p.HasDefaultValue);
 			if (!canDefault)
 			{
 				return (false, null, $"Missing required parameters: expected {paramsCount.ToString().Color(Color.Gold)}, got {argCount.ToString().Color(Color.Gold)}");
 			}
+			
 			for (var i = argCount; i < paramsCount; i++)
 			{
 				commandArgs[i + 1] = command.Parameters[i].DefaultValue;
 			}
 		}
 
-		// If we have arguments to convert, process them
-		if (argCount > 0)
+		// Convert provided arguments for non-remainder commands
+		for (var i = 0; i < Math.Min(argCount, paramsCount); i++)
 		{
-			for (var i = 0; i < argCount; i++)
+			var param = command.Parameters[i];
+			var arg = args[i];
+			
+			var (success, convertedValue, error) = TryConvertSingleParameter(ctx, param, arg, i);
+			if (!success)
 			{
-				var param = command.Parameters[i];
-				var arg = args[i];
-				bool conversionSuccess = false;
-				string conversionError = null;
-
-				try
-				{
-					// Custom Converter
-					if (_converters.TryGetValue(param.ParameterType, out var customConverter))
-					{
-						var (converter, convertMethod, converterContextType) = customConverter;
-
-						// IMPORTANT CHANGE: Return special error code for unassignable context
-						if (!converterContextType.IsAssignableFrom(ctx.GetType()))
-						{
-							// Signal internal error with a special return format
-							return (false, null, $"INTERNAL_ERROR:Converter type {converterContextType.Name.ToString().Color(Color.Gold)} is not assignable from {ctx.GetType().Name.ToString().Color(Color.Gold)}");
-						}
-
-						object result;
-						var tryParseArgs = new object[] { ctx, arg };
-						try
-						{
-							result = convertMethod.Invoke(converter, tryParseArgs);
-							commandArgs[i + 1] = result;
-							conversionSuccess = true;
-						}
-						catch (TargetInvocationException tie)
-						{
-							if (tie.InnerException is CommandException e)
-							{
-								conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}";
-							}
-							else
-							{
-								conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter";
-							}
-						}
-						catch (Exception)
-						{
-							conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter";
-						}
-					}
-					else
-					{
-						var defaultConverter = TypeDescriptor.GetConverter(param.ParameterType);
-						try
-						{
-							var val = defaultConverter.ConvertFromInvariantString(arg);
-
-							// Separate, more robust enum validation
-							if (param.ParameterType.IsEnum)
-							{
-								bool isDefined = false;
-
-								// For numeric input, we need to check if the value is defined
-								if (int.TryParse(arg, out int enumIntVal))
-								{
-									isDefined = Enum.IsDefined(param.ParameterType, enumIntVal);
-
-									if (!isDefined)
-									{
-										return (false, null, $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Invalid enum value '{arg.ToString().Color(Color.Gold)}' for {param.ParameterType.Name.ToString().Color(Color.Gold)}");
-									}
-								}
-							}
-
-							commandArgs[i + 1] = val;
-							conversionSuccess = true;
-						}
-						catch (Exception e)
-						{
-							conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}";
-						}
-					}
-				}
-				catch (Exception ex)
-				{
-					conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error: {ex.Message}";
-				}
-
-				if (!conversionSuccess)
-				{
-					return (false, null, conversionError);
-				}
+				return (false, null, error);
 			}
+			
+			commandArgs[i + 1] = convertedValue;
 		}
 
 		return (true, commandArgs, null);
+	}
+
+	private static (bool Success, object[] Args, string Error) TryConvertParametersWithRemainder(ICommandContext ctx, CommandMetadata command, string[] args, string originalInput, object[] commandArgs)
+	{
+		var argCount = args?.Length ?? 0;
+		var paramsCount = command.Parameters.Length;
+		var remainderIndex = paramsCount - 1; // _remainder is always last
+		
+		// Calculate minimum required parameters (non-optional, non-remainder)
+		var requiredParamCount = 0;
+		for (int i = 0; i < remainderIndex; i++)
+		{
+			if (!command.Parameters[i].HasDefaultValue)
+			{
+				requiredParamCount++;
+			}
+		}
+
+		// Check if we have enough arguments for required parameters
+		if (argCount < requiredParamCount)
+		{
+			return (false, null, $"Missing required parameters: expected at least {requiredParamCount.ToString().Color(Color.Gold)}, got {argCount.ToString().Color(Color.Gold)}");
+		}
+
+		// Try different strategies to split arguments between regular params and remainder
+		// Start from the maximum possible and work backwards to handle optional parameters
+		var maxNonRemainderArgs = Math.Min(argCount, remainderIndex);
+		
+		for (int splitPoint = maxNonRemainderArgs; splitPoint >= requiredParamCount; splitPoint--)
+		{
+			var (success, error) = TryConvertWithSplitPoint(ctx, command, args, originalInput, commandArgs, splitPoint);
+			if (success)
+			{
+				return (true, commandArgs, null);
+			}
+			
+			// If conversion failed due to parameter type mismatch and we have optional parameters,
+			// try with fewer parameters (let optional parameters use defaults)
+			if (error != null && error.Contains("Parameter") && splitPoint > requiredParamCount)
+			{
+				continue; // Try next split point
+			}
+			
+			// If it's a different kind of error or we're at minimum required, return it
+			if (splitPoint == requiredParamCount)
+			{
+				return (false, null, error);
+			}
+		}
+		
+		return (false, null, "Failed to parse parameters");
+	}
+
+	private static (bool Success, string Error) TryConvertWithSplitPoint(ICommandContext ctx, CommandMetadata command, string[] args, string originalInput, object[] commandArgs, int splitPoint)
+	{
+		var paramsCount = command.Parameters.Length;
+		var remainderIndex = paramsCount - 1;
+		
+		// Convert regular parameters up to split point
+		for (int i = 0; i < splitPoint; i++)
+		{
+			var param = command.Parameters[i];
+			var arg = args[i];
+			
+			var (success, convertedValue, error) = TryConvertSingleParameter(ctx, param, arg, i);
+			if (!success)
+			{
+				return (false, error);
+			}
+			
+			commandArgs[i + 1] = convertedValue;
+		}
+		
+		// Fill remaining optional parameters with defaults
+		for (int i = splitPoint; i < remainderIndex; i++)
+		{
+			var param = command.Parameters[i];
+			if (param.HasDefaultValue)
+			{
+				commandArgs[i + 1] = param.DefaultValue;
+			}
+			else
+			{
+				return (false, $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}) is required but no value provided");
+			}
+		}
+		
+		// Handle remainder parameter
+		if (!string.IsNullOrEmpty(originalInput))
+		{
+			commandArgs[remainderIndex + 1] = ExtractRemainderFromOriginalInput(originalInput, command, remainderIndex, splitPoint);
+		}
+		else
+		{
+			var remainderArgs = args.Skip(splitPoint).ToArray();
+			commandArgs[remainderIndex + 1] = string.Join(" ", remainderArgs);
+		}
+		
+		return (true, null);
+	}
+
+	private static (bool Success, object ConvertedValue, string Error) TryConvertSingleParameter(ICommandContext ctx, ParameterInfo param, string arg, int paramIndex)
+	{
+		try
+		{
+			// Custom Converter
+			if (_converters.TryGetValue(param.ParameterType, out var customConverter))
+			{
+				var (converter, convertMethod, converterContextType) = customConverter;
+
+				if (!converterContextType.IsAssignableFrom(ctx.GetType()))
+				{
+					return (false, null, $"INTERNAL_ERROR:Converter type {converterContextType.Name.ToString().Color(Color.Gold)} is not assignable from {ctx.GetType().Name.ToString().Color(Color.Gold)}");
+				}
+
+				var tryParseArgs = new object[] { ctx, arg };
+				try
+				{
+					var result = convertMethod.Invoke(converter, tryParseArgs);
+					return (true, result, null);
+				}
+				catch (TargetInvocationException tie)
+				{
+					if (tie.InnerException is CommandException e)
+					{
+						return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}");
+					}
+					else
+					{
+						return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter");
+					}
+				}
+				catch (Exception)
+				{
+					return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter");
+				}
+			}
+			else
+			{
+				var defaultConverter = TypeDescriptor.GetConverter(param.ParameterType);
+				try
+				{
+					var val = defaultConverter.ConvertFromInvariantString(arg);
+
+					// Separate, more robust enum validation
+					if (param.ParameterType.IsEnum)
+					{
+						bool isDefined = false;
+
+						// For numeric input, we need to check if the value is defined
+						if (int.TryParse(arg, out int enumIntVal))
+						{
+							isDefined = Enum.IsDefined(param.ParameterType, enumIntVal);
+
+							if (!isDefined)
+							{
+								return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): Invalid enum value '{arg.ToString().Color(Color.Gold)}' for {param.ParameterType.Name.ToString().Color(Color.Gold)}");
+							}
+						}
+					}
+
+					return (true, val, null);
+				}
+				catch (Exception e)
+				{
+					return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}");
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error: {ex.Message}");
+		}
+	}
+
+	private static string ExtractRemainderFromOriginalInput(string originalInput, CommandMetadata command, int remainderParameterIndex, int splitPoint = -1)
+	{
+		// Remove the prefix (.)
+		var afterPrefix = originalInput.Substring(DEFAULT_PREFIX.Length);
+
+		// Split by first space to separate command from parameters
+		var firstSpaceIndex = afterPrefix.IndexOf(' ');
+		if (firstSpaceIndex == -1)
+		{
+			return ""; // No parameters at all
+		}
+
+		var parametersText = afterPrefix.Substring(firstSpaceIndex + 1);
+
+		// If remainder is the first parameter, return all parameters
+		if (remainderParameterIndex == 0)
+		{
+			return parametersText;
+		}
+
+		// We need to skip the first splitPoint parameters (or remainderParameterIndex if splitPoint not provided)
+		var parametersToSkip = splitPoint >= 0 ? splitPoint : remainderParameterIndex;
+		
+		// Parse through the parameters text respecting quotes
+		var currentParamIndex = 0;
+		var position = 0;
+		var inQuotes = false;
+
+		while (position < parametersText.Length && currentParamIndex < parametersToSkip)
+		{
+			var ch = parametersText[position];
+		
+			// Handle escaped quotes
+			if (ch == '\\' && position + 1 < parametersText.Length && parametersText[position + 1] == '"')
+			{
+				position += 2;
+				continue;
+			}
+		
+			if (ch == '"')
+			{
+				inQuotes = !inQuotes;
+			}
+			else if (ch == ' ' && !inQuotes)
+			{
+				// Skip consecutive spaces
+				while (position < parametersText.Length && parametersText[position] == ' ')
+				{
+					position++;
+				}
+				currentParamIndex++;
+				continue;
+			}
+		
+			position++;
+		}
+
+		// Return the remainder from this position
+		if (position < parametersText.Length)
+		{
+			return parametersText.Substring(position);
+		}
+
+		return "";
 	}
 
 	private static CommandResult ExecuteCommand(ICommandContext ctx, CommandMetadata command, string[] args, string input)
@@ -486,7 +667,7 @@ public static class CommandRegistry
 		}
 
 		// Try to convert parameters
-		var (success, commandArgs, error) = TryConvertParameters(ctx, command, args);
+		var (success, commandArgs, error) = TryConvertParameters(ctx, command, args, input);
 		if (!success)
 		{
 			// Check for special internal error flag
@@ -777,6 +958,12 @@ public static class CommandRegistry
 
 		var canConvert = parameters.All(param =>
 		{
+			if (param.Name == "_remainder" && param.ParameterType == typeof(string))
+			{
+				Log.Debug($"Method {method.Name.ToString().Color(Color.Gold)} has a _remainder parameter");
+				return true;
+			}
+
 			if (_converters.ContainsKey(param.ParameterType))
 			{
 				Log.Debug($"Method {method.Name.ToString().Color(Color.Gold)} has a parameter of type {param.ParameterType.Name.ToString().Color(Color.Gold)} which is registered as a converter");
