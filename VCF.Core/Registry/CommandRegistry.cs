@@ -243,7 +243,7 @@ public static class CommandRegistry
 			matchedCommand = _cache.GetCommand(input);
 		}
 
-		var (commands, args) = (matchedCommand.Commands, matchedCommand.Args);
+		var commands = matchedCommand.Commands;
 
 		if (!matchedCommand.IsMatched)
 		{
@@ -260,14 +260,15 @@ public static class CommandRegistry
 		// If there's only one command, handle it directly
 		if (commands.Count() == 1)
 		{
-			return ExecuteCommand(ctx, commands.First(), args, input);
+			var (command, args) = commands.First();
+			return ExecuteCommand(ctx, command, args, input);
 		}
 
 		// Multiple commands match, try to convert parameters for each
 		var successfulCommands = new List<(CommandMetadata Command, object[] Args, string Error)>();
 		var failedCommands = new List<(CommandMetadata Command, string Error)>();
 
-		foreach (var command in commands)
+		foreach (var (command, args) in commands)
 		{
 			if (!CanCommandExecute(ctx, command)) continue;
 

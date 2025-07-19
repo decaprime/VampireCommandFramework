@@ -47,7 +47,7 @@ internal class CommandCache
 	{
 		var lowerRawInput = rawInput.ToLowerInvariant();
 		List<CommandMetadata> possibleMatches = new();
-		List<CommandMetadata> exactMatches = new();
+		List<(CommandMetadata Command, string[] Args)> exactMatches = new();
 
 		foreach (var (key, argCounts) in _newCache)
 		{
@@ -64,17 +64,10 @@ internal class CommandCache
 
 					if (argCounts.TryGetValue(parameters.Length, out var cmds))
 					{
-						// Add all commands that match the exact parameter count
-						exactMatches.AddRange(cmds);
-
-						// Store the parameters to return
-						if (exactMatches.Count > 0 && parameters.Length > 0)
+						// Add all commands that match the exact parameter count, paired with their parameters
+						foreach (var cmd in cmds)
 						{
-							return new CacheResult(exactMatches, parameters, null);
-						}
-						else
-						{
-							return new CacheResult(exactMatches, Array.Empty<string>(), null);
+							exactMatches.Add((cmd, parameters));
 						}
 					}
 					else
@@ -86,15 +79,14 @@ internal class CommandCache
 			}
 		}
 
-		// If we have exact matches but didn't return early
+		// If we have exact matches, return them
 		if (exactMatches.Count > 0)
 		{
-			return new CacheResult(exactMatches, Array.Empty<string>(), null);
+			return new CacheResult(exactMatches, null);
 		}
 
-		// Use the explicit single command constructor with null
-		CommandMetadata nullCommand = null;
-		return new CacheResult(nullCommand, null, possibleMatches.Distinct());
+		// No exact matches found
+		return new CacheResult(((CommandMetadata, string[])?)null, possibleMatches.Distinct());
 	}
 
 	// Handle assembly-specific command lookup
@@ -102,7 +94,7 @@ internal class CommandCache
 	{
 		var lowerRawInput = rawInput.ToLowerInvariant();
 		List<CommandMetadata> possibleMatches = new();
-		List<CommandMetadata> exactMatches = new();
+		List<(CommandMetadata Command, string[] Args)> exactMatches = new();
 
 		foreach (var (key, argCounts) in _newCache)
 		{
@@ -119,38 +111,30 @@ internal class CommandCache
 
 					if (argCounts.TryGetValue(parameters.Length, out var cmds))
 					{
-						// Add all commands that match the exact parameter count and assembly name
-						exactMatches.AddRange(cmds.Where(cmd => cmd.Assembly.GetName().Name.Equals(assemblyName, StringComparison.OrdinalIgnoreCase)));
-
-						// Store the parameters to return
-						if (exactMatches.Count > 0 && parameters.Length > 0)
+						// Add all commands that match the exact parameter count and assembly name, paired with their parameters
+						foreach (var cmd in cmds.Where(cmd => cmd.AssemblyName.Equals(assemblyName, StringComparison.OrdinalIgnoreCase)))
 						{
-							return new CacheResult(exactMatches, parameters, null);
-						}
-						else
-						{
-							return new CacheResult(exactMatches, Array.Empty<string>(), null);
+							exactMatches.Add((cmd, parameters));
 						}
 					}
 					else
 					{
 						// Add all possible matches for the command name but different param counts
 						possibleMatches.AddRange(argCounts.Values.SelectMany(x => x)
-							                                     .Where(cmd => cmd.Assembly.GetName().Name.Equals(assemblyName, StringComparison.OrdinalIgnoreCase)));
+						                                     .Where(cmd => cmd.AssemblyName.Equals(assemblyName, StringComparison.OrdinalIgnoreCase)));
 					}
 				}
 			}
 		}
 
-		// If we have exact matches but didn't return early
+		// If we have exact matches, return them
 		if (exactMatches.Count > 0)
 		{
-			return new CacheResult(exactMatches, Array.Empty<string>(), null);
+			return new CacheResult(exactMatches, null);
 		}
 
-		// Use the explicit single command constructor with null
-		CommandMetadata nullCommand = null;
-		return new CacheResult(nullCommand, null, possibleMatches.Distinct());
+		// No exact matches found
+		return new CacheResult(((CommandMetadata, string[])?)null, possibleMatches.Distinct());
 	}
 
 	internal void RemoveCommandsFromType(Type t)

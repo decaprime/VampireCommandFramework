@@ -63,6 +63,120 @@ namespace VCF.Tests
 
 		#endregion
 
+		#region Custom Converter Fallback Tests
+
+		// Custom type and converter for fallback testing
+		public class CustomType
+		{
+			public string Value { get; set; }
+			public CustomType(string value) { Value = value; }
+		}
+
+		public class FailingCustomConverter : CommandArgumentConverter<CustomType>
+		{
+			public override CustomType Parse(ICommandContext ctx, string input)
+			{
+				// Only accept "valid" as a valid input, throw error for anything else
+				if (input == "valid")
+				{
+					return new CustomType(input);
+				}
+				throw ctx.Error($"CustomConverter failed: '{input}' is not valid");
+			}
+		}
+
+		public class CustomConverterCommands
+		{
+			[Command("test", description: "Custom type parameter command")]
+			public void TestCustom(ICommandContext ctx, CustomType value)
+			{
+				ctx.Reply($"Custom command executed with: {value.Value}");
+			}
+		}
+
+		public class CustomInvalidCommands
+		{
+			[Command("test invalid", description: "Takes invalid as a second part with no parameters")]
+			public void TestCustom(ICommandContext ctx)
+			{
+				ctx.Reply($"test invalid executed");
+			}
+		}
+
+		public class StringAndCustomCommands
+		{
+			[Command("test", description: "String parameter command")]
+			public void TestString(ICommandContext ctx, string value)
+			{
+				ctx.Reply($"String command executed with: {value}");
+			}
+
+			[Command("test", description: "Custom type parameter command")]
+			public void TestCustom(ICommandContext ctx, CustomType value)
+			{
+				ctx.Reply($"Custom command executed with: {value.Value}");
+			}
+		}
+
+		[Test]
+		public void CustomConverterFallback_ConverterFails_FallsBackToNoParamCommand()
+		{
+			// Register custom converter and commands
+			CommandRegistry.RegisterConverter(typeof(FailingCustomConverter));
+			CommandRegistry.RegisterCommandType(typeof(CustomInvalidCommands));
+
+			var ctx = new AssertReplyContext();
+			var result = CommandRegistry.Handle(ctx, ".test invalid");
+
+			Assert.That(result, Is.EqualTo(CommandResult.Success));
+			ctx.AssertReplyContains("test invalid executed");
+		}
+
+		[Test]
+		public void CustomConverterFallback_ConverterFails_FallsBackToStringCommand()
+		{
+			// Register custom converter and commands
+			CommandRegistry.RegisterConverter(typeof(FailingCustomConverter));
+			CommandRegistry.RegisterCommandType(typeof(StringAndCustomCommands));
+
+			var ctx = new AssertReplyContext();
+			var result = CommandRegistry.Handle(ctx, ".test invalid");
+
+			Assert.That(result, Is.EqualTo(CommandResult.Success));
+			ctx.AssertReplyContains("String command executed with: invalid");
+		}
+
+		[Test]
+		public void CustomConverterFallback_OnlyCustomCommandExists_ConverterFails_ShowsError()
+		{
+			// Register only the custom converter command (no string fallback)
+			CommandRegistry.RegisterConverter(typeof(FailingCustomConverter));
+			CommandRegistry.RegisterCommandType(typeof(CustomConverterCommands));
+
+			var ctx = new AssertReplyContext();
+			var result = CommandRegistry.Handle(ctx, ".test invalid");
+
+			Assert.That(result, Is.EqualTo(CommandResult.UsageError));
+			ctx.AssertReplyContains("[error]");
+			ctx.AssertReplyContains("CustomConverter failed");
+		}
+
+		[Test]
+		public void CustomConverterFallback_StringAndIntCommands_ConverterNotRegistered_FallsBackToString()
+		{
+			// Register commands without the custom converter
+			CommandRegistry.RegisterCommandType(typeof(StringParameterCommands));
+			CommandRegistry.RegisterCommandType(typeof(IntParameterCommands));
+
+			var ctx = new AssertReplyContext();
+			var result = CommandRegistry.Handle(ctx, ".test hello");
+
+			Assert.That(result, Is.EqualTo(CommandResult.Success));
+			ctx.AssertReplyContains("String command executed with: hello");
+		}
+
+		#endregion
+
 		#region Basic Overloading Tests
 
 		[Test]
