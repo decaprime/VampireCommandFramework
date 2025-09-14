@@ -767,6 +767,22 @@ public static class CommandRegistry
 			_commandHistory[contextName] = history;
 		}
 
+		// Check if this exact command with same arguments already exists in history
+		for (int i = 0; i < history.Count; i++)
+		{
+			var historyEntry = history[i];
+			
+			// Compare command metadata (same command method) and arguments
+			if (historyEntry.Command.Method == command.Method && 
+				historyEntry.Command.Attribute.Name == command.Attribute.Name &&
+				ArgsEqual(historyEntry.Args, args))
+			{
+				// Remove the existing duplicate
+				history.RemoveAt(i);
+				break; // Only remove the first match found as it should be the only one
+			}
+		}
+
 		// Add the new command to the beginning of the list
 		history.Insert(0, (input, command, args));
 
@@ -775,6 +791,24 @@ public static class CommandRegistry
 		{
 			history.RemoveAt(history.Count - 1);
 		}
+	}
+
+	private static bool ArgsEqual(object[] args1, object[] args2)
+	{
+		if (args1 == null && args2 == null) return true;
+		if (args1 == null || args2 == null) return false;
+		if (args1.Length != args2.Length) return false;
+
+		// Skipping the first index as that is always the context
+		for (int i = 1; i < args1.Length; i++)
+		{
+			if (!Equals(args1[i], args2[i]))
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private static void HandleCommandHistory(ICommandContext ctx, string input)
