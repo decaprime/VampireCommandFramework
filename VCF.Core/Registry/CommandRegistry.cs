@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using BepInEx;
 using VampireCommandFramework.Basics;
 using VampireCommandFramework.Common;
 using VampireCommandFramework.Registry;
@@ -29,6 +31,9 @@ public static class CommandRegistry
 		AssemblyCommandMap.Clear();
 		_converters.Clear();
 		_cache = new();
+		_commandHistory.Clear();
+		_loadedHistories.Clear();
+		_pendingCommands.Clear();
 	}
 
 	// todo: document this default behavior, it's just not something to ship without but you can Middlewares.Claer();
@@ -38,8 +43,14 @@ public static class CommandRegistry
 	// Store pending commands for selection
 	private static Dictionary<string, (string input, List<(CommandMetadata Command, object[] Args, string Error)> commands)> _pendingCommands = new();
 
-	private static Dictionary<string, List<(string input, CommandMetadata Command, object[] Args)>> _commandHistory = new();
+	private static Dictionary<ulong, List<(string input, CommandMetadata Command, object[] Args)>> _commandHistory = new();
 	private const int MAX_COMMAND_HISTORY = 10; // Store up to 10 past commands
+	
+	// Track which users have had their history loaded this session
+	private static HashSet<ulong> _loadedHistories = new();
+	
+	// Command history directory path
+	private static string HistoryDirectory => Path.Combine(Path.Combine(Paths.ConfigPath, PluginInfo.PLUGIN_NAME), "CommandHistory");
 
 	internal static bool CanCommandExecute(ICommandContext ctx, CommandMetadata command)
 	{
@@ -181,8 +192,6 @@ public static class CommandRegistry
 		return matrix[s.Length, t.Length];
 	}
 
-
-
 	private static void HandleBeforeExecute(ICommandContext ctx, CommandMetadata command)
 	{
 		Middlewares.ForEach(m => m.BeforeExecute(ctx, command.Attribute, command.Method));
@@ -195,6 +204,13 @@ public static class CommandRegistry
 
 	public static CommandResult Handle(ICommandContext ctx, string input)
 	{
+		// Load command history for this user if it's their first command this session
+		var platformId = GetPlatformId(ctx);
+		if (platformId.HasValue && !_loadedHistories.Contains(platformId.Value))
+		{
+			LoadHistoryFromFile(ctx, platformId.Value);
+		}
+
 		// Check if this is a command selection (e.g., .1, .2, etc.)
 		if (input.StartsWith(DEFAULT_PREFIX) && input.Length > 1)
 		{
@@ -309,12 +325,13 @@ public static class CommandRegistry
 		if (successfulCommands.Count == 1)
 		{
 			var (command, commandArgs, _) = successfulCommands[0];
-			AddToCommandHistory(ctx.Name, input, command, commandArgs);
+			AddToCommandHistory(ctx, input, command, commandArgs);
 			return ExecuteCommandWithArgs(ctx, command, commandArgs);
 		}
 
 		// Case 3: Multiple commands succeeded - store and ask user to select
-		_pendingCommands[ctx.Name] = (input, successfulCommands);
+		var pendingKey = platformId.HasValue ? platformId.Value.ToString() : ctx.Name;
+		_pendingCommands[pendingKey] = (input, successfulCommands);
 
 		{
 			var sb = new StringBuilder();
@@ -337,7 +354,10 @@ public static class CommandRegistry
 
 	private static CommandResult HandleCommandSelection(ICommandContext ctx, int selectedIndex)
 	{
-		if (!_pendingCommands.TryGetValue(ctx.Name, out var pendingCommands) || pendingCommands.commands.Count == 0)
+		var platformId = GetPlatformId(ctx);
+		var pendingKey = platformId.HasValue ? platformId.Value.ToString() : ctx.Name;
+		
+		if (!_pendingCommands.TryGetValue(pendingKey, out var pendingCommands) || pendingCommands.commands.Count == 0)
 		{
 			ctx.SysReply($"{"[error]".Color(Color.Red)} No command selection is pending.");
 			return CommandResult.CommandError;
@@ -351,9 +371,9 @@ public static class CommandRegistry
 
 		var (command, args, _) = pendingCommands.commands[selectedIndex - 1];
 
-		AddToCommandHistory(ctx.Name, pendingCommands.input, command, args);
+		AddToCommandHistory(ctx, pendingCommands.input, command, args);
 		var result = ExecuteCommandWithArgs(ctx, command, args);
-		_pendingCommands.Remove(ctx.Name);
+		_pendingCommands.Remove(pendingKey);
 		return result;
 	}
 
@@ -683,7 +703,7 @@ public static class CommandRegistry
 			return CommandResult.UsageError;
 		}
 
-		AddToCommandHistory(ctx.Name, input, command, commandArgs);
+		AddToCommandHistory(ctx, input, command, commandArgs);
 		return ExecuteCommandWithArgs(ctx, command, commandArgs);
 	}
 
@@ -758,19 +778,28 @@ public static class CommandRegistry
 		return CommandResult.Success;
 	}
 
-	private static void AddToCommandHistory(string contextName, string input, CommandMetadata command, object[] args)
+	private static void AddToCommandHistory(ICommandContext ctx, string input, CommandMetadata command, object[] args)
 	{
-		// Create the history list for this context if it doesn't exist yet
-		if (!_commandHistory.TryGetValue(contextName, out var history))
+		var platformId = GetPlatformId(ctx);
+		if (!platformId.HasValue)
+		{
+			return; // Cannot save history for non-chat contexts
+		}
+
+		// Create the history list for this platform ID if it doesn't exist yet
+		if (!_commandHistory.TryGetValue(platformId.Value, out var history))
 		{
 			history = new List<(string input, CommandMetadata Command, object[] Args)>();
-			_commandHistory[contextName] = history;
+			_commandHistory[platformId.Value] = history;
 		}
 
 		// Check if this exact command with same arguments already exists in history
 		for (int i = 0; i < history.Count; i++)
 		{
 			var historyEntry = history[i];
+
+			// Skip entries that couldn't be parsed at load
+			if (historyEntry.Command == null) continue;
 			
 			// Compare command metadata (same command method) and arguments
 			if (historyEntry.Command.Method == command.Method && 
@@ -791,6 +820,9 @@ public static class CommandRegistry
 		{
 			history.RemoveAt(history.Count - 1);
 		}
+
+		// Save the updated history to file
+		SaveHistoryToFile(platformId.Value, history);
 	}
 
 	private static bool ArgsEqual(object[] args1, object[] args2)
@@ -813,11 +845,18 @@ public static class CommandRegistry
 
 	private static void HandleCommandHistory(ICommandContext ctx, string input)
 	{
+		var platformId = GetPlatformId(ctx);
+		if (!platformId.HasValue)
+		{
+			ctx.SysReply($"{"[error]".Color(Color.Red)} Command history is not available for this context type.");
+			return;
+		}
+
 		// Remove the ".!" prefix
 		string command = input.Substring(2).Trim();
 
-		// Check if the command history exists for this context
-		if (!_commandHistory.TryGetValue(ctx.Name, out var history) || history.Count == 0)
+		// Check if the command history exists for this platform ID
+		if (!_commandHistory.TryGetValue(platformId.Value, out var history) || history.Count == 0)
 		{
 			ctx.SysReply($"{"[error]".Color(Color.Red)} No command history available.");
 			return;
@@ -843,7 +882,17 @@ public static class CommandRegistry
 		{
 			var selectedCommand = history[index - 1];
 			ctx.SysReply($"Executing command {index.ToString().Color(Color.Gold)}: {selectedCommand.input.Color(Color.Command)}");
-			ExecuteCommandWithArgs(ctx, selectedCommand.Command, selectedCommand.Args);
+			
+			// If Command and Args are available (successfully parsed), use them directly
+			if (selectedCommand.Command != null && selectedCommand.Args != null)
+			{
+				ExecuteCommandWithArgs(ctx, selectedCommand.Command, selectedCommand.Args);
+			}
+			else
+			{
+				// Fall back to re-parsing if command wasn't successfully parsed during load
+				Handle(ctx, selectedCommand.input);
+			}
 			return;
 		}
 
@@ -852,12 +901,175 @@ public static class CommandRegistry
 		{
 			var mostRecent = history[0];
 			ctx.SysReply($"Repeating most recent command: {mostRecent.input.Color(Color.Command)}");
-			ExecuteCommandWithArgs(ctx, mostRecent.Command, mostRecent.Args);
+			
+			// If Command and Args are available (successfully parsed), use them directly
+			if (mostRecent.Command != null && mostRecent.Args != null)
+			{
+				ExecuteCommandWithArgs(ctx, mostRecent.Command, mostRecent.Args);
+			}
+			else
+			{
+				// Fall back to re-parsing if command wasn't successfully parsed during load
+				Handle(ctx, mostRecent.input);
+			}
 			return;
 		}
 
 		// Invalid command
 		ctx.SysReply($"{"[error]".Color(Color.Red)} Invalid command history selection. Use {".! list".Color(Color.Command)} to see available commands or {".! #".Color(Color.Command)} to execute a specific command.");
+	}
+
+	private static void SaveHistoryToFile(ulong platformId, List<(string input, CommandMetadata Command, object[] Args)> history)
+	{
+		try
+		{
+			if (!Directory.Exists(HistoryDirectory))
+			{
+				Directory.CreateDirectory(HistoryDirectory);
+			}
+
+			string filePath = Path.Combine(HistoryDirectory, $"{platformId}.txt");
+			var inputsOnly = history.Select(h => h.input).ToArray();
+			File.WriteAllLines(filePath, inputsOnly);
+		}
+		catch (Exception ex)
+		{
+			Log.Error($"Failed to save command history for platform ID {platformId}: {ex.Message}");
+		}
+	}
+
+	private static void LoadHistoryFromFile(ICommandContext ctx, ulong platformId)
+	{
+		try
+		{
+			string filePath = Path.Combine(HistoryDirectory, $"{platformId}.txt");
+
+			if (!File.Exists(filePath))
+			{
+				return; // No history file exists
+			}
+
+			var lines = File.ReadAllLines(filePath);
+			if (lines.Length == 0)
+			{
+				return; // Empty file
+			}
+
+			var reconstructedHistory = new List<(string input, CommandMetadata Command, object[] Args)>();
+
+			// Process lines in reverse to maintain chronological order (most recent first)
+			lines.Reverse();
+			foreach (var input in lines)
+			{
+				try
+				{
+					// Parse the command to get CommandMetadata and Args
+					var (command, args) = ParseCommandForHistory(ctx, input);
+					if (command != null && args != null)
+					{
+						reconstructedHistory.Add((input, command, args));
+					}
+					else
+					{
+						// If parsing fails, still add the input for display purposes
+						reconstructedHistory.Add((input, null, null));
+					}
+				}
+				catch (Exception)
+				{
+					// If individual command parsing fails, add with null values
+					reconstructedHistory.Add((input, null, null));
+				}
+			}
+
+			_commandHistory[platformId] = reconstructedHistory;
+			_loadedHistories.Add(platformId);
+		}
+		catch (Exception ex)
+		{
+			Log.Error($"Failed to load command history for platform ID {platformId}: {ex.Message}");
+			_loadedHistories.Add(platformId); // Mark as loaded to avoid repeated attempts
+		}
+	}
+
+	private static ulong? GetPlatformId(ICommandContext ctx)
+	{
+		if (ctx is ChatCommandContext chatCtx)
+		{
+			return chatCtx.User.PlatformId;
+		}
+		return null;
+	}
+
+	private static (CommandMetadata command, object[] args) ParseCommandForHistory(ICommandContext ctx, string input)
+	{
+		try
+		{
+			// Ensure the command starts with the prefix
+			if (!input.StartsWith(DEFAULT_PREFIX))
+			{
+				return (null, null);
+			}
+
+			// Remove the prefix for processing
+			string afterPrefix = input.Substring(DEFAULT_PREFIX.Length);
+
+			// Check if this could be an assembly-specific command
+			string assemblyName = null;
+			string commandInput = input;
+
+			int spaceIndex = afterPrefix.IndexOf(' ');
+			if (spaceIndex > 0)
+			{
+				string potentialAssemblyName = afterPrefix.Substring(0, spaceIndex);
+
+				// Check if this could be a valid assembly name
+				bool isValidAssembly = AssemblyCommandMap.Keys.Any(assemblyName =>
+					assemblyName.Equals(potentialAssemblyName, StringComparison.OrdinalIgnoreCase));
+
+				if (isValidAssembly)
+				{
+					assemblyName = potentialAssemblyName;
+					commandInput = "." + afterPrefix.Substring(spaceIndex + 1);
+				}
+			}
+
+			// Get command(s) based on input
+			CacheResult matchedCommand = null;
+			if (assemblyName != null)
+			{
+				matchedCommand = _cache.GetCommandFromAssembly(commandInput, assemblyName);
+			}
+			if (matchedCommand == null || !matchedCommand.IsMatched)
+			{
+				matchedCommand = _cache.GetCommand(input);
+			}
+
+			var commands = matchedCommand.Commands;
+
+			if (!matchedCommand.IsMatched || !commands.Any())
+			{
+				return (null, null);
+			}
+
+			// Try to find the first command that can be parsed successfully
+			foreach (var (command, cmdArgs) in commands)
+			{
+				if (!CanCommandExecute(ctx, command)) continue;
+
+				var (success, commandArgs, error) = TryConvertParameters(ctx, command, cmdArgs, input);
+				if (success)
+				{
+					return (command, commandArgs);
+				}
+			}
+
+			return (null, null);
+		}
+		catch (Exception)
+		{
+			return (null, null);
+		}
 	}
 
 	public static void UnregisterConverter(Type converter)
