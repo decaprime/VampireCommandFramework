@@ -5,24 +5,18 @@ using System.Linq;
 using System.Text;
 using BepInEx;
 using VampireCommandFramework.Common;
-using VampireCommandFramework.Registry;
-
-using static VampireCommandFramework.Format;
 
 namespace VampireCommandFramework.Registry;
 
-/// <summary>
-/// Manages command history functionality for the VampireCommandFramework
-/// </summary>
 public static class CommandHistory
 {
     #region Private Fields
     
-    private static Dictionary<ulong, List<(string input, CommandMetadata Command, object[] Args)>> _commandHistory = new();
+    private static Dictionary<string, List<(string input, CommandMetadata Command, object[] Args)>> _commandHistory = new();
     private const int MAX_COMMAND_HISTORY = 10; // Store up to 10 past commands
     
     // Track which users have had their history loaded this session
-    private static HashSet<ulong> _loadedHistories = new();
+    private static HashSet<string> _loadedHistories = new();
     
     // Command history directory path
     private static string HistoryDirectory => Path.Combine(Path.Combine(Paths.ConfigPath, PluginInfo.PLUGIN_NAME), "CommandHistory");
@@ -37,33 +31,29 @@ public static class CommandHistory
         _loadedHistories.Clear();
     }
 
-	internal static bool IsHistoryLoaded(ulong platformId)
+	internal static bool IsHistoryLoaded(string contextName)
     {
-        return _loadedHistories.Contains(platformId);
+        return _loadedHistories.Contains(contextName);
     }
 
 	internal static void EnsureHistoryLoaded(ICommandContext ctx)
     {
-        var platformId = GetPlatformId(ctx);
-        if (platformId.HasValue && !_loadedHistories.Contains(platformId.Value))
+        var contextName = ctx.Name;
+        if (!_loadedHistories.Contains(contextName))
         {
-            LoadHistoryFromFile(ctx, platformId.Value);
+            LoadHistoryFromFile(ctx, contextName);
         }
     }
 
 	internal static void AddToHistory(ICommandContext ctx, string input, CommandMetadata command, object[] args)
     {
-        var platformId = GetPlatformId(ctx);
-        if (!platformId.HasValue)
-        {
-            return; // Cannot save history for non-chat contexts
-        }
+        var contextName = ctx.Name;
 
-        // Create the history list for this platform ID if it doesn't exist yet
-        if (!_commandHistory.TryGetValue(platformId.Value, out var history))
+        // Create the history list for this context if it doesn't exist yet
+        if (!_commandHistory.TryGetValue(contextName, out var history))
         {
             history = new List<(string input, CommandMetadata Command, object[] Args)>();
-            _commandHistory[platformId.Value] = history;
+            _commandHistory[contextName] = history;
         }
 
         // Check if this exact command with same arguments already exists in history
@@ -95,23 +85,18 @@ public static class CommandHistory
         }
 
         // Save the updated history to file
-        SaveHistoryToFile(platformId.Value, history);
+        SaveHistoryToFile(contextName, history);
     }
 
 	internal static CommandResult HandleHistoryCommand(ICommandContext ctx, string input, Func<ICommandContext, string, CommandResult> handleCommand, Func<ICommandContext, CommandMetadata, object[], CommandResult> executeCommandWithArgs)
     {
-        var platformId = GetPlatformId(ctx);
-        if (!platformId.HasValue)
-        {
-            ctx.SysReply($"{"[error]".Color(Color.Red)} Command history is not available for this context type.");
-            return CommandResult.CommandError;
-        }
+        var contextName = ctx.Name;
 
         // Remove the ".!" prefix
         string command = input.Substring(2).Trim();
 
-        // Check if the command history exists for this platform ID
-        if (!_commandHistory.TryGetValue(platformId.Value, out var history) || history.Count == 0)
+        // Check if the command history exists for this context
+        if (!_commandHistory.TryGetValue(contextName, out var history) || history.Count == 0)
         {
             ctx.SysReply($"{"[error]".Color(Color.Red)} No command history available.");
             return CommandResult.CommandError;
@@ -195,7 +180,7 @@ public static class CommandHistory
         return true;
     }
     
-    private static void SaveHistoryToFile(ulong platformId, List<(string input, CommandMetadata Command, object[] Args)> history)
+    private static void SaveHistoryToFile(string contextName, List<(string input, CommandMetadata Command, object[] Args)> history)
     {
         try
         {
@@ -204,21 +189,25 @@ public static class CommandHistory
                 Directory.CreateDirectory(HistoryDirectory);
             }
 
-            string filePath = Path.Combine(HistoryDirectory, $"{platformId}.txt");
+            // Use a safe filename by replacing invalid characters
+            var safeFileName = string.Join("_", contextName.Split(Path.GetInvalidFileNameChars()));
+            string filePath = Path.Combine(HistoryDirectory, $"{safeFileName}.txt");
             var inputsOnly = history.Select(h => h.input).ToArray();
             File.WriteAllLines(filePath, inputsOnly);
         }
         catch (Exception ex)
         {
-            Log.Error($"Failed to save command history for platform ID {platformId}: {ex.Message}");
+            Log.Error($"Failed to save command history for context {contextName}: {ex.Message}");
         }
     }
 
-    private static void LoadHistoryFromFile(ICommandContext ctx, ulong platformId)
+    private static void LoadHistoryFromFile(ICommandContext ctx, string contextName)
     {
         try
         {
-            string filePath = Path.Combine(HistoryDirectory, $"{platformId}.txt");
+            // Use a safe filename by replacing invalid characters
+            var safeFileName = string.Join("_", contextName.Split(Path.GetInvalidFileNameChars()));
+            string filePath = Path.Combine(HistoryDirectory, $"{safeFileName}.txt");
 
             if (!File.Exists(filePath))
             {
@@ -258,23 +247,14 @@ public static class CommandHistory
                 }
             }
 
-            _commandHistory[platformId] = reconstructedHistory;
-            _loadedHistories.Add(platformId);
+            _commandHistory[contextName] = reconstructedHistory;
+            _loadedHistories.Add(contextName);
         }
         catch (Exception ex)
         {
-            Log.Error($"Failed to load command history for platform ID {platformId}: {ex.Message}");
-            _loadedHistories.Add(platformId); // Mark as loaded to avoid repeated attempts
+            Log.Error($"Failed to load command history for context {contextName}: {ex.Message}");
+            _loadedHistories.Add(contextName); // Mark as loaded to avoid repeated attempts
         }
-    }
-
-    private static ulong? GetPlatformId(ICommandContext ctx)
-    {
-        if (ctx is ChatCommandContext chatCtx)
-        {
-            return chatCtx.User.PlatformId;
-        }
-        return null;
     }
 
     private static (CommandMetadata command, object[] args) ParseCommandForHistory(ICommandContext ctx, string input)

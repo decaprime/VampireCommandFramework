@@ -1,9 +1,6 @@
 using NUnit.Framework;
-using System.Reflection;
-using System.Collections.Generic;
 using VampireCommandFramework;
 using VampireCommandFramework.Registry;
-using System.Reflection.Emit;
 
 namespace VCF.Tests
 {

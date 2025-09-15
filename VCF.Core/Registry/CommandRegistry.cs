@@ -324,8 +324,7 @@ public static class CommandRegistry
 		}
 
 		// Case 3: Multiple commands succeeded - store and ask user to select
-		var platformId = GetPlatformId(ctx);
-		var pendingKey = platformId.HasValue ? platformId.Value.ToString() : ctx.Name;
+		var pendingKey = ctx.Name;
 		_pendingCommands[pendingKey] = (input, successfulCommands);
 
 		{
@@ -349,8 +348,7 @@ public static class CommandRegistry
 
 	private static CommandResult HandleCommandSelection(ICommandContext ctx, int selectedIndex)
 	{
-		var platformId = GetPlatformId(ctx);
-		var pendingKey = platformId.HasValue ? platformId.Value.ToString() : ctx.Name;
+		var pendingKey = ctx.Name;
 		
 		if (!_pendingCommands.TryGetValue(pendingKey, out var pendingCommands) || pendingCommands.commands.Count == 0)
 		{
@@ -771,15 +769,6 @@ public static class CommandRegistry
 		HandleAfterExecute(ctx, command);
 
 		return CommandResult.Success;
-	}
-
-	private static ulong? GetPlatformId(ICommandContext ctx)
-	{
-		if (ctx is ChatCommandContext chatCtx)
-		{
-			return chatCtx.User.PlatformId;
-		}
-		return null;
 	}
 
 	public static void UnregisterConverter(Type converter)
