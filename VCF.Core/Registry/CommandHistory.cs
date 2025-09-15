@@ -126,7 +126,9 @@ public static class CommandHistory
             // If Command and Args are available (successfully parsed), use them directly
             if (selectedCommand.Command != null && selectedCommand.Args != null)
             {
-                return executeCommandWithArgs(ctx, selectedCommand.Command, selectedCommand.Args);
+				var argsCopy = selectedCommand.Args.ToArray();
+				argsCopy[0] = ctx; // Ensure the context is current
+				return executeCommandWithArgs(ctx, selectedCommand.Command, selectedCommand.Args);
             }
             else
             {
@@ -222,8 +224,6 @@ public static class CommandHistory
 
             var reconstructedHistory = new List<(string input, CommandMetadata Command, object[] Args)>();
 
-            // Process lines in reverse to maintain chronological order (most recent first)
-            lines.Reverse();
             foreach (var input in lines)
             {
                 try

@@ -108,9 +108,216 @@ namespace VCF.Tests
             {
                 ctx.Reply($"Result: {a + b}");
             }
+            
+            [Command("whoami", description: "Shows the current context name")]
+            public static void WhoAmI(ICommandContext ctx)
+            {
+                ctx.Reply($"You are: {ctx.Name}");
+            }
+            
+            [Command("greet", description: "Greets the current user by name")]
+            public static void Greet(ICommandContext ctx, string message)
+            {
+                ctx.Reply($"Hello {ctx.Name}, {message}");
+            }
+            
+            [Command("contextinfo", description: "Shows context name and unique ID")]
+            public static void ContextInfo(ICommandContext ctx)
+            {
+                // Cast to AssertReplyContext to access ContextId
+                if (ctx is AssertReplyContext assertCtx)
+                {
+                    ctx.Reply($"Context: {ctx.Name} (ID: {assertCtx.ContextId})");
+                }
+                else
+                {
+                    ctx.Reply($"Context: {ctx.Name} (ID: unknown)");
+                }
+            }
+            
+            [Command("greetfull", description: "Greets with full context info")]
+            public static void GreetFull(ICommandContext ctx, string message)
+            {
+                if (ctx is AssertReplyContext assertCtx)
+                {
+                    ctx.Reply($"Hello {ctx.Name} (ID: {assertCtx.ContextId}), {message}");
+                }
+                else
+                {
+                    ctx.Reply($"Hello {ctx.Name} (ID: unknown), {message}");
+                }
+            }
         }
         
         #endregion
+
+        [Test]
+        public void CommandHistory_RepeatWithDifferentUserContexts()
+        {
+            // This test verifies that when User B repeats a command from User A's history,
+            // it executes with User B's context, not User A's context
+            // NOTE: This test assumes cross-user history access for demonstration
+            
+            // Arrange - User A executes a context-dependent command  
+            var userA = new AssertReplyContext { Name = "Alice" };
+            TestUtilities.AssertHandle(userA, ".greet world", CommandResult.Success);
+            userA.AssertReplyContains("Hello Alice, world");
+            
+            // Now let's simulate User B executing the same command but with different context
+            var userB = new AssertReplyContext { Name = "Bob" };
+            TestUtilities.AssertHandle(userB, ".greet everyone", CommandResult.Success);
+            userB.AssertReplyContains("Hello Bob, everyone");
+            
+            // User B repeats their own last command
+            var repeatResult = CommandRegistry.Handle(userB, ".!");
+            
+            // Assert - The repeated command should execute with User B's context (Bob)
+            Assert.That(repeatResult, Is.EqualTo(CommandResult.Success));
+            userB.AssertReplyContains("Repeating most recent command: .greet everyone");
+            userB.AssertReplyContains("Hello Bob, everyone"); // Should be Bob, not Alice
+            
+            // Verify that Alice's context was not affected
+            var aliceText = userA.RepliedTextLfAndTrimmed();
+            var bobText = userB.RepliedTextLfAndTrimmed();
+            
+            // Alice should only have her original command response
+            Assert.That(aliceText, Contains.Substring("Hello Alice, world"));
+            Assert.That(aliceText, Does.Not.Contain("Hello Bob"), "Alice's context should not contain Bob's responses");
+            
+            // Bob should have his responses including the repeated command
+            Assert.That(bobText, Contains.Substring("Hello Bob, everyone"));
+            Assert.That(bobText, Does.Not.Contain("Hello Alice"), "Bob's context should not contain Alice's responses");
+        }
+
+        [Test]
+        public void CommandHistory_BugTest_RepeatUsesStoredContextInsteadOfCurrent()
+        {
+            // This test specifically checks for a potential bug where repeated commands
+            // use the stored context from history instead of the current context
+            // This test may FAIL if the bug exists
+            
+            // Arrange - Create a context that will be stored in history
+            var originalContext = new AssertReplyContext { Name = "TestUser" };
+            var originalContextId = originalContext.ContextId;
+            
+            TestUtilities.AssertHandle(originalContext, ".contextinfo", CommandResult.Success);
+            originalContext.AssertReplyContains($"Context: TestUser (ID: {originalContextId})");
+            
+            // Create a NEW context with the same name but different instance (simulating restart)
+            var newContext = new AssertReplyContext { Name = "TestUser" };
+            var newContextId = newContext.ContextId;
+            
+            // Verify they have different IDs
+            Assert.That(newContextId, Is.Not.EqualTo(originalContextId), "New context should have different ID");
+            
+            // Act - Repeat the command using the new context
+            var repeatResult = CommandRegistry.Handle(newContext, ".!");
+            
+            // Assert - The command should execute with the NEW context
+            Assert.That(repeatResult, Is.EqualTo(CommandResult.Success));
+            newContext.AssertReplyContains("Repeating most recent command: .contextinfo");
+            
+            // CRITICAL: Check that it uses the NEW context ID, not the old one
+            newContext.AssertReplyContains($"Context: TestUser (ID: {newContextId})");
+            newContext.AssertReplyDoesntContain($"ID: {originalContextId}");
+            
+            // Verify the responses went to the correct contexts
+            var newContextReplies = newContext.RepliedTextLfAndTrimmed();
+            Assert.That(newContextReplies, Contains.Substring($"ID: {newContextId}"), 
+                "The repeated command should execute with the NEW context ID");
+                
+            Assert.That(newContextReplies, Does.Not.Contain($"ID: {originalContextId}"), 
+                "The repeated command should NOT use the old context ID");
+        }
+
+        [Test]
+        public void CommandHistory_RepeatAfterRestartUsesCurrentContext()
+        {
+            // This test verifies that when commands are loaded from persistent storage and repeated,
+            // they execute with the current context, not the stale context from storage
+            
+            // Arrange - User executes context-dependent commands before restart
+            var originalUser = new AssertReplyContext { Name = "TestUser" };
+            var originalContextId = originalUser.ContextId;
+            
+            TestUtilities.AssertHandle(originalUser, ".contextinfo", CommandResult.Success);
+            originalUser.AssertReplyContains($"Context: TestUser (ID: {originalContextId})");
+            
+            TestUtilities.AssertHandle(originalUser, ".greetfull hello", CommandResult.Success);
+            originalUser.AssertReplyContains($"Hello TestUser (ID: {originalContextId}), hello");
+            
+            // Simulate application restart
+            CommandRegistry.Reset();
+            CommandRegistry.RegisterCommandType(typeof(TestCommands));
+            CommandRegistry.RegisterCommandType(typeof(RepeatCommands));
+            
+            // Act - Same user name but new context instance (simulating restart)
+            var newUser = new AssertReplyContext { Name = "TestUser" };
+            var newContextId = newUser.ContextId;
+            
+            // Verify they have different IDs
+            Assert.That(newContextId, Is.Not.EqualTo(originalContextId), "New context should have different ID");
+            
+            // Repeat the most recent command (loaded from file)
+            var repeatResult = CommandRegistry.Handle(newUser, ".!");
+            
+            // Assert - Should execute with the NEW context instance, not the old one
+            Assert.That(repeatResult, Is.EqualTo(CommandResult.Success));
+            newUser.AssertReplyContains("Repeating most recent command: .greetfull hello");
+            newUser.AssertReplyContains($"Hello TestUser (ID: {newContextId}), hello");
+            newUser.AssertReplyDoesntContain($"ID: {originalContextId}");
+            
+            // Repeat the second-to-last command (contextinfo)
+            var contextInfoResult = CommandRegistry.Handle(newUser, ".! 2");
+            Assert.That(contextInfoResult, Is.EqualTo(CommandResult.Success));
+            newUser.AssertReplyContains("Executing command 2: .contextinfo");
+            newUser.AssertReplyContains($"Context: TestUser (ID: {newContextId})");
+            newUser.AssertReplyDoesntContain($"ID: {originalContextId}");
+        }
+
+        [Test]
+        public void CommandHistory_RepeatUsesCurrentContext()
+        {
+            // This test verifies that when a command is repeated, it executes with the
+            // current user's context, not the context that was saved in history
+            
+            // Arrange - User1 executes a context-dependent command
+            var user1 = new AssertReplyContext { Name = "Alice" };
+            var user1ContextId = user1.ContextId;
+            
+            TestUtilities.AssertHandle(user1, ".greetfull world", CommandResult.Success);
+            user1.AssertReplyContains($"Hello Alice (ID: {user1ContextId}), world");
+            
+            // User2 gets their own context
+            var user2 = new AssertReplyContext { Name = "Bob" };
+            var user2ContextId = user2.ContextId;
+            
+            // Verify they have different context IDs
+            Assert.That(user2ContextId, Is.Not.EqualTo(user1ContextId), "Different users should have different context IDs");
+            
+            // Act - User2 executes their own command then repeats it
+            TestUtilities.AssertHandle(user2, ".greetfull everyone", CommandResult.Success);
+            user2.AssertReplyContains($"Hello Bob (ID: {user2ContextId}), everyone");
+            
+            // Now User2 repeats their last command
+            var repeatResult = CommandRegistry.Handle(user2, ".!");
+            
+            // Assert - The repeated command should execute with User2's context (Bob), not User1's context (Alice)
+            Assert.That(repeatResult, Is.EqualTo(CommandResult.Success));
+            user2.AssertReplyContains("Repeating most recent command: .greetfull everyone");
+            user2.AssertReplyContains($"Hello Bob (ID: {user2ContextId}), everyone"); // Should use Bob's context ID
+            user2.AssertReplyDoesntContain($"ID: {user1ContextId}"); // Should NOT use Alice's context ID
+            
+            // Additional verification: User2 repeats a contextinfo command
+            TestUtilities.AssertHandle(user2, ".contextinfo", CommandResult.Success);
+            user2.AssertReplyContains($"Context: Bob (ID: {user2ContextId})");
+            
+            var contextRepeatResult = CommandRegistry.Handle(user2, ".!");
+            Assert.That(contextRepeatResult, Is.EqualTo(CommandResult.Success));
+            user2.AssertReplyContains("Repeating most recent command: .contextinfo");
+            user2.AssertReplyContains($"Context: Bob (ID: {user2ContextId})"); // Should still be Bob's context
+            user2.AssertReplyDoesntContain($"ID: {user1ContextId}"); // Should NOT be Alice's context
+        }
 
         [Test]
         public void CommandHistory_HandlesSpecialCharactersInContextName()

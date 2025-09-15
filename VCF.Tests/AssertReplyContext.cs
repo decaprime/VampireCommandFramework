@@ -10,6 +10,9 @@ public class AssertReplyContext : ICommandContext
 	public IServiceProvider Services => throw new NotImplementedException();
 
 	public string Name { get; set; } = nameof(AssertReplyContext);
+	
+	// Add unique identifier for each context instance
+	public string ContextId { get; set; } = Guid.NewGuid().ToString("N");
 
 	public bool IsAdmin { get; set; }
 
