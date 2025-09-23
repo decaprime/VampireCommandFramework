@@ -1,6 +1,9 @@
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
+using VampireCommandFramework.Common;
+using System.Threading.Tasks;
+using BepInEx.Configuration;
 
 namespace VampireCommandFramework;
 
@@ -8,10 +11,17 @@ namespace VampireCommandFramework;
 internal class Plugin : BasePlugin
 {
 	private Harmony _harmony;
+	
+	// Configuration
+	private static ConfigEntry<bool> EnableVersionCheck;
 
 	public override void Load()
 	{
 		Common.Log.Instance = Log;
+		
+		// Initialize configuration
+		EnableVersionCheck = Config.Bind("Version Check", "EnableVersionCheck", true, 
+			"Enable automatic checking for plugin updates on Thunderstore at startup");
 
 		if (!Breadstone.VWorld.IsServer)
 		{
@@ -30,6 +40,31 @@ internal class Plugin : BasePlugin
 
 		IL2CPPChainloader.Instance.Plugins.TryGetValue(PluginInfo.PLUGIN_GUID, out var info);
 		Log.LogMessage($"VCF Loaded: {info?.Metadata.Version}");
+		
+		// Check for plugin updates on Thunderstore after all plugins are loaded
+		if (EnableVersionCheck.Value)
+		{
+			IL2CPPChainloader.Instance.Finished += () =>
+			{
+				_ = Task.Run(async () =>
+				{
+					try
+					{
+						// Add a small delay to ensure everything is fully initialized
+						await Task.Delay(2000);
+						await ThunderstoreVersionChecker.CheckAllPluginVersionsAsync();
+					}
+					catch (System.Exception ex)
+					{
+						Log.LogWarning($"Version check failed: {ex.Message}");
+					}
+				});
+			};
+		}
+		else
+		{
+			Log.LogInfo("Plugin version checking is disabled. Enable it in the config if you want to check for updates.");
+		}
 	}
 
 	public override bool Unload()
