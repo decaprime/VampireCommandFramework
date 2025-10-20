@@ -18,7 +18,7 @@ internal class Plugin : BasePlugin
 	public override void Load()
 	{
 		Common.Log.Instance = Log;
-		
+
 		// Initialize configuration
 		EnableVersionCheck = Config.Bind("Version Check", "EnableVersionCheck", true, 
 			"Enable automatic checking for plugin updates on Thunderstore at startup");
@@ -50,8 +50,6 @@ internal class Plugin : BasePlugin
 				{
 					try
 					{
-						// Add a small delay to ensure everything is fully initialized
-						await Task.Delay(2000);
 						await ThunderstoreVersionChecker.CheckAllPluginVersionsAsync();
 					}
 					catch (System.Exception ex)

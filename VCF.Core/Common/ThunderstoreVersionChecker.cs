@@ -1,11 +1,16 @@
+using BepInEx.Unity.IL2CPP;
+using ProjectM;
+using ProjectM.Network;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using System.Linq;
-using BepInEx.Unity.IL2CPP;
+using Unity.Collections;
+using Unity.Entities;
+using VampireCommandFramework.Breadstone;
 
 namespace VampireCommandFramework.Common;
 
@@ -23,24 +28,64 @@ internal static class ThunderstoreVersionChecker
 		_httpClient.Timeout = TimeSpan.FromSeconds(30);
 	}
 
+	static void SendMessageToClient(Entity userEntity, string message)
+	{
+		if (userEntity == default) return;
+
+		// Queue ECS operations for main thread execution to avoid IL2CPP threading issues
+		UnityMainThreadDispatcher.Enqueue(() =>
+		{
+			try
+			{
+				// Now we're on main thread - safe to access ECS components
+				if (VWorld.Server?.EntityManager == null) return;
+				if (!VWorld.Server.EntityManager.Exists(userEntity)) return;
+				if (!VWorld.Server.EntityManager.HasComponent<User>(userEntity)) return;
+
+				var user = VWorld.Server.EntityManager.GetComponentData<User>(userEntity);
+				if (!user.IsConnected) return;
+
+				var msg = new FixedString512Bytes(message);
+				ServerChatUtils.SendSystemMessageToClient(VWorld.Server.EntityManager, user, ref msg);
+			}
+			catch (Exception ex)
+			{
+				Log.Debug($"Could not send message to client (user may have disconnected): {ex.Message}");
+			}
+		});
+	}
+
+	static void LogInfoAndSendMessageToClient(Entity userEntity, string message)
+	{
+		Log.Info(message);
+		SendMessageToClient(userEntity, message);
+	}
+
+	static void LogWarningAndSendMessageToClient(Entity userEntity, string message)
+	{
+
+		Log.Warning(message);
+		SendMessageToClient(userEntity, message.Color(Color.Gold));
+	}
+
 	/// <summary>
 	/// Checks all installed plugins for newer versions on Thunderstore
 	/// </summary>
-	public static async Task CheckAllPluginVersionsAsync()
+	public static async Task CheckAllPluginVersionsAsync(Entity userEntity=default)
 	{
 		try
 		{
-			Log.Info("Starting plugin version check...");
+			LogInfoAndSendMessageToClient(userEntity, "Starting plugin version check...");
 			
 			// Get all loaded plugins
 			var installedPlugins = GetInstalledPlugins();
-			Log.Info($"Found {installedPlugins.Count} installed plugins to check");
+			LogInfoAndSendMessageToClient(userEntity, $"Found {installedPlugins.Count} installed plugins to check");
 
 			// Get all packages from Thunderstore API for V Rising community
 			var thunderstorePackages = await GetThunderstorePackagesAsync();
 			if (thunderstorePackages == null || thunderstorePackages.Count == 0)
 			{
-				Log.Warning("Could not retrieve Thunderstore package data");
+				LogWarningAndSendMessageToClient(userEntity, "Could not retrieve Thunderstore package data");
 				return;
 			}
 
@@ -58,12 +103,14 @@ internal static class ThunderstoreVersionChecker
 				{
 					updatesFound = true;
 					AppendUpdateInfo(resultMessage, updateInfo);
+					SendMessageToClient(userEntity, $"Update available for {plugin.Name.Color(Color.Command)}: {plugin.Version.Color(Color.Gold)} -> {updateInfo.LatestVersion.Color(Color.Green)}");
 				}
 			}
 
 			if (!updatesFound)
 			{
 				resultMessage.AppendLine("* All plugins are up to date!");
+				LogInfoAndSendMessageToClient(userEntity, "All installed plugins are up to date!");
 			}
 			else
 			{
