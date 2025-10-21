@@ -69,6 +69,37 @@ internal static class ThunderstoreVersionChecker
 	}
 
 	/// <summary>
+	/// Lists all installed plugins with their current versions (no update checking)
+	/// </summary>
+	public static void ListAllPluginVersions(Entity userEntity = default)
+	{
+		try
+		{
+			// Get all loaded plugins
+			var installedPlugins = GetInstalledPlugins();
+			
+			if (installedPlugins.Count == 0)
+			{
+				LogInfoAndSendMessageToClient(userEntity, "No plugins found.");
+				return;
+			}
+
+			LogInfoAndSendMessageToClient(userEntity, $"Installed Plugins ({installedPlugins.Count}):");
+			
+			// Sort plugins by name for easier reading
+			foreach (var plugin in installedPlugins.OrderBy(p => p.Name))
+			{
+				var message = $"{plugin.Name.Color(Color.Command)}: {plugin.Version.Color(Color.Green)}";
+				SendMessageToClient(userEntity, message);
+			}
+		}
+		catch (Exception ex)
+		{
+			Log.Error($"Error listing plugin versions: {ex.Message}");
+		}
+	}
+
+	/// <summary>
 	/// Checks all installed plugins for newer versions on Thunderstore
 	/// </summary>
 	public static async Task CheckAllPluginVersionsAsync(Entity userEntity=default)

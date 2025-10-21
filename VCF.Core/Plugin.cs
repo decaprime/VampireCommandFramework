@@ -36,6 +36,7 @@ internal class Plugin : BasePlugin
 		CommandRegistry.RegisterCommandType(typeof(Basics.HelpCommands));
 		CommandRegistry.RegisterCommandType(typeof(Basics.BepInExConfigCommands));
 		CommandRegistry.RegisterCommandType(typeof(Basics.RepeatCommands));
+		CommandRegistry.RegisterCommandType(typeof(Basics.VersionCommands));
 
 
 		IL2CPPChainloader.Instance.Plugins.TryGetValue(PluginInfo.PLUGIN_GUID, out var info);
