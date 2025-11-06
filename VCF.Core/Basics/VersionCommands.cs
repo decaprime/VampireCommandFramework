@@ -4,7 +4,7 @@ namespace VampireCommandFramework.Basics;
 
 internal static class VersionCommands
 {
-	[Command("version", description: "Lists all installed plugins and their versions")]
+	[Command("version", description: "Lists all installed plugins and their versions", adminOnly: true)]
 	public static void VersionCommand(ICommandContext ctx)
 	{
 		// Get the user entity if this is a ChatCommandContext

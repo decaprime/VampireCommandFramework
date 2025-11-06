@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -14,9 +15,7 @@ using VampireCommandFramework.Breadstone;
 
 namespace VampireCommandFramework.Common;
 
-/// <summary>
-/// Handles version checking against the Thunderstore API
-/// </summary>
+// Handles version checking against the Thunderstore API
 internal static class ThunderstoreVersionChecker
 {
 	private static readonly HttpClient _httpClient = new HttpClient();
@@ -58,19 +57,17 @@ internal static class ThunderstoreVersionChecker
 	static void LogInfoAndSendMessageToClient(Entity userEntity, string message)
 	{
 		Log.Info(message);
-		SendMessageToClient(userEntity, message);
+		var formattedMessage = $"[vcf] ".Color(Color.Primary) + message.Color(Color.Beige);
+		SendMessageToClient(userEntity, formattedMessage);
 	}
 
 	static void LogWarningAndSendMessageToClient(Entity userEntity, string message)
 	{
-
 		Log.Warning(message);
-		SendMessageToClient(userEntity, message.Color(Color.Gold));
+		var formattedMessage = $"[vcf] ".Color(Color.Primary) + message.Color(Color.Gold);
+		SendMessageToClient(userEntity, formattedMessage);
 	}
 
-	/// <summary>
-	/// Lists all installed plugins with their current versions (no update checking)
-	/// </summary>
 	public static void ListAllPluginVersions(Entity userEntity = default)
 	{
 		try
@@ -89,8 +86,9 @@ internal static class ThunderstoreVersionChecker
 			// Sort plugins by name for easier reading
 			foreach (var plugin in installedPlugins.OrderBy(p => p.Name))
 			{
-				var message = $"{plugin.Name.Color(Color.Command)}: {plugin.Version.Color(Color.Green)}";
-				SendMessageToClient(userEntity, message);
+				var pluginMessage = $"{plugin.Name.Color(Color.Command)}: {plugin.Version.Color(Color.Green)}";
+				var formattedMessage = $"[vcf] ".Color(Color.Primary) + pluginMessage;
+				SendMessageToClient(userEntity, formattedMessage);
 			}
 		}
 		catch (Exception ex)
@@ -99,9 +97,7 @@ internal static class ThunderstoreVersionChecker
 		}
 	}
 
-	/// <summary>
-	/// Checks all installed plugins for newer versions on Thunderstore
-	/// </summary>
+
 	public static async Task CheckAllPluginVersionsAsync(Entity userEntity=default)
 	{
 		try
@@ -124,7 +120,7 @@ internal static class ThunderstoreVersionChecker
 
 			// Check each plugin against Thunderstore data
 			var updatesFound = false;
-			var resultMessage = new System.Text.StringBuilder();
+			var resultMessage = new StringBuilder();
 			resultMessage.AppendLine($"Version check completed for {installedPlugins.Count} plugins:");
 			
 			foreach (var plugin in installedPlugins)
@@ -134,7 +130,10 @@ internal static class ThunderstoreVersionChecker
 				{
 					updatesFound = true;
 					AppendUpdateInfo(resultMessage, updateInfo);
-					SendMessageToClient(userEntity, $"Update available for {plugin.Name.Color(Color.Command)}: {plugin.Version.Color(Color.Gold)} -> {updateInfo.LatestVersion.Color(Color.Green)}");
+					
+					var updateMessage = $"Update available for {plugin.Name.Color(Color.Command)}: {plugin.Version.Color(Color.Gold)} -> {updateInfo.LatestVersion.Color(Color.Green)}";
+					var formattedMessage = $"[vcf] ".Color(Color.Primary) + updateMessage;
+					SendMessageToClient(userEntity, formattedMessage);
 				}
 			}
 
@@ -158,9 +157,7 @@ internal static class ThunderstoreVersionChecker
 		}
 	}
 
-	/// <summary>
-	/// Gets information about all installed BepInEx plugins
-	/// </summary>
+	// Gets information about all installed BepInEx plugins
 	private static List<InstalledPluginInfo> GetInstalledPlugins()
 	{
 		var plugins = new List<InstalledPluginInfo>();
@@ -182,9 +179,8 @@ internal static class ThunderstoreVersionChecker
 		return plugins;
 	}
 
-	/// <summary>
-	/// Retrieves all V Rising packages from Thunderstore API
-	/// </summary>
+
+	// Retrieves all V Rising packages from Thunderstore API
 	private static async Task<List<ThunderstorePackage>> GetThunderstorePackagesAsync()
 	{
 		try
@@ -212,9 +208,8 @@ internal static class ThunderstoreVersionChecker
 		}
 	}
 
-	/// <summary>
-	/// Checks if a plugin has an update available on Thunderstore
-	/// </summary>
+
+	// Checks if a plugin has an update available on Thunderstore
 	private static PluginUpdateInfo CheckPluginForUpdate(InstalledPluginInfo plugin, List<ThunderstorePackage> thunderstorePackages)
 	{
 		try
@@ -262,9 +257,8 @@ internal static class ThunderstoreVersionChecker
 		}
 	}
 
-	/// <summary>
-	/// Compares two version strings to determine if the second is newer
-	/// </summary>
+
+	// Compares two version strings to determine if the second is newer
 	private static bool IsNewerVersion(string currentVersion, string latestVersion)
 	{
 		try
@@ -280,9 +274,8 @@ internal static class ThunderstoreVersionChecker
 		}
 	}
 
-	/// <summary>
-	/// Normalizes version strings to ensure proper Version parsing
-	/// </summary>
+
+	// Normalizes version strings to ensure proper Version parsing
 	private static string NormalizeVersion(string version)
 	{
 		if (string.IsNullOrWhiteSpace(version))
@@ -301,9 +294,8 @@ internal static class ThunderstoreVersionChecker
 		return version;
 	}
 
-	/// <summary>
-	/// Appends information about available update to the StringBuilder
-	/// </summary>
+
+	// Appends information about available update to the StringBuilder
 	private static void AppendUpdateInfo(System.Text.StringBuilder sb, PluginUpdateInfo updateInfo)
 	{
 		sb.AppendLine($">> UPDATE AVAILABLE: {updateInfo.PluginName}");
@@ -317,9 +309,8 @@ internal static class ThunderstoreVersionChecker
 		sb.AppendLine(); // Add blank line between updates
 	}
 
-	/// <summary>
-	/// Information about an installed plugin
-	/// </summary>
+
+	// Information about an installed plugin
 	private class InstalledPluginInfo
 	{
 		public string GUID { get; set; }
@@ -327,9 +318,8 @@ internal static class ThunderstoreVersionChecker
 		public string Version { get; set; }
 	}
 
-	/// <summary>
-	/// Information about an available plugin update
-	/// </summary>
+
+	// Information about an available plugin update
 	private class PluginUpdateInfo
 	{
 		public string PluginName { get; set; }
@@ -339,9 +329,8 @@ internal static class ThunderstoreVersionChecker
 		public string PackageUrl { get; set; }
 	}
 
-	/// <summary>
-	/// Thunderstore package data structure
-	/// </summary>
+
+	// Thunderstore package data structure
 	private class ThunderstorePackage
 	{
 		[JsonPropertyName("name")]
@@ -384,9 +373,8 @@ internal static class ThunderstoreVersionChecker
 		public List<ThunderstoreVersion> Versions { get; set; }
 	}
 
-	/// <summary>
-	/// Thunderstore package version data structure
-	/// </summary>
+
+	// Thunderstore package version data structure
 	private class ThunderstoreVersion
 	{
 		[JsonPropertyName("name")]
