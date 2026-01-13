@@ -215,10 +215,7 @@ internal static class ThunderstoreVersionChecker
 		try
 		{
 			// Try to find matching package by GUID first, then by name
-			var matchingPackage = thunderstorePackages.FirstOrDefault(p => 
-				p.Versions?.Any(v => v.Dependencies?.Any(d => d.Contains(plugin.GUID)) == true) == true)
-				?? thunderstorePackages.FirstOrDefault(p => 
-					string.Equals(p.Name, plugin.Name, StringComparison.OrdinalIgnoreCase));
+			var matchingPackage = thunderstorePackages.FirstOrDefault(p => string.Equals(p.Name, plugin.Name, StringComparison.OrdinalIgnoreCase));
 
 			if (matchingPackage?.Versions == null || matchingPackage.Versions.Count == 0)
 			{
