@@ -128,7 +128,7 @@ public static class CommandHistory
             {
 				var argsCopy = selectedCommand.Args.ToArray();
 				argsCopy[0] = ctx; // Ensure the context is current
-				return executeCommandWithArgs(ctx, selectedCommand.Command, selectedCommand.Args);
+				return executeCommandWithArgs(ctx, selectedCommand.Command, argsCopy);
             }
             else
             {
@@ -146,7 +146,9 @@ public static class CommandHistory
             // If Command and Args are available (successfully parsed), use them directly
             if (mostRecent.Command != null && mostRecent.Args != null)
             {
-                return executeCommandWithArgs(ctx, mostRecent.Command, mostRecent.Args);
+                var argsCopy = mostRecent.Args.ToArray();
+                argsCopy[0] = ctx;
+                return executeCommandWithArgs(ctx, mostRecent.Command, argsCopy);
             }
             else
             {
