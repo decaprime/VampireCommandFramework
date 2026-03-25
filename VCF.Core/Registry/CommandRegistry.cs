@@ -609,14 +609,56 @@ public static class CommandRegistry
 		// Remove the prefix (.)
 		var afterPrefix = originalInput.Substring(DEFAULT_PREFIX.Length);
 
-		// Split by first space to separate command from parameters
-		var firstSpaceIndex = afterPrefix.IndexOf(' ');
-		if (firstSpaceIndex == -1)
+		// Count words to skip by detecting which name variant (full or shorthand) was used in the input
+		int commandWordCount = 0;
+
+		if (command.GroupAttribute != null)
 		{
-			return ""; // No parameters at all
+			var groupName = command.GroupAttribute.Name;
+			var groupShortHand = command.GroupAttribute.ShortHand;
+
+			if (groupShortHand != null && afterPrefix.StartsWith(groupShortHand + " ", StringComparison.OrdinalIgnoreCase))
+				commandWordCount += groupShortHand.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+			else
+				commandWordCount += groupName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
 		}
 
-		var parametersText = afterPrefix.Substring(firstSpaceIndex + 1);
+		var cmdName = command.Attribute.Name;
+		var cmdShortHand = command.Attribute.ShortHand;
+
+		if (cmdShortHand != null)
+		{
+			// Skip past the group words to check which command name variant follows
+			var checkPos = 0;
+			for (int w = 0; w < commandWordCount; w++)
+			{
+				while (checkPos < afterPrefix.Length && afterPrefix[checkPos] != ' ') checkPos++;
+				while (checkPos < afterPrefix.Length && afterPrefix[checkPos] == ' ') checkPos++;
+			}
+			var afterGroup = afterPrefix.Substring(checkPos);
+
+			if (afterGroup.StartsWith(cmdShortHand + " ", StringComparison.OrdinalIgnoreCase)
+				|| afterGroup.Equals(cmdShortHand, StringComparison.OrdinalIgnoreCase))
+				commandWordCount += cmdShortHand.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+			else
+				commandWordCount += cmdName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+		}
+		else
+		{
+			commandWordCount += cmdName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+		}
+
+		var pos = 0;
+		for (int w = 0; w < commandWordCount; w++)
+		{
+			while (pos < afterPrefix.Length && afterPrefix[pos] != ' ') pos++;
+			while (pos < afterPrefix.Length && afterPrefix[pos] == ' ') pos++;
+		}
+
+		if (pos >= afterPrefix.Length)
+			return "";
+
+		var parametersText = afterPrefix.Substring(pos);
 
 		// If remainder is the first parameter, return all parameters
 		if (remainderParameterIndex == 0)
