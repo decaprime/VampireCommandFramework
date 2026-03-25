@@ -4,10 +4,6 @@ using ProjectM.Network;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using Unity.Collections;
 using Unity.Entities;
 using VampireCommandFramework.Breadstone;
@@ -79,13 +75,6 @@ internal static class VersionChecker
 		SendMessageToClient(userEntity, message);
 	}
 
-	static void LogWarningAndSendMessageToClient(Entity userEntity, string message)
-	{
-
-		Log.Warning(message);
-		SendMessageToClient(userEntity, message.Color(Color.Gold));
-	}
-
 	/// Gets information about all installed BepInEx plugins
 	private static List<InstalledPluginInfo> GetInstalledPlugins()
 	{
@@ -106,25 +95,6 @@ internal static class VersionChecker
 		}
 
 		return plugins;
-	}
-
-	/// Normalizes version strings to ensure proper Version parsing
-	private static string NormalizeVersion(string version)
-	{
-		if (string.IsNullOrWhiteSpace(version))
-			return "0.0.0";
-
-		// Remove any non-numeric prefixes (like 'v')
-		version = version.TrimStart('v', 'V');
-
-		// Ensure at least 3 parts (Major.Minor.Patch)
-		var parts = version.Split('.');
-		if (parts.Length == 1)
-			return $"{parts[0]}.0.0";
-		if (parts.Length == 2)
-			return $"{parts[0]}.{parts[1]}.0";
-
-		return version;
 	}
 
 
