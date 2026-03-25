@@ -218,67 +218,7 @@ Built-in commands for managing BepInEx configurations across all plugins:
 VCF includes tools to help you track and manage plugin versions on your server.
 
 ### Commands:
-- `.version` - Lists all installed plugins with their current versions (available to all users)
-
-### Automatic Update Checking
-VCF automatically checks for plugin updates from Thunderstore in two scenarios:
-1. **When the server starts up** - Checks all plugins and logs results to the server console
-2. **When an admin authenticates** - Checks all plugins and sends update notifications directly to that admin in-game
-
-This feature:
-- **Scans all installed BepInEx plugins** against the Thunderstore database
-- **Uses semantic versioning** to determine if updates are available
-- **Logs results to the server console** on startup
-- **Sends in-game messages to admins** when they authenticate
-- **Is configurable** - can be enabled/disabled via the config file
-
-### Configuration Options:
-- `EnableVersionCheck` (default: true) - Enable/disable automatic update checking
-
-### Example Server Console Output (Startup):
-```
-[Info   : VampireCommandFramework] Starting plugin version check...
-[Info   : VampireCommandFramework] Found 15 installed plugins to check
-[Info   : VampireCommandFramework] Retrieved 156 packages from Thunderstore
-[Info   : VampireCommandFramework] Version check completed for 15 plugins:
->> UPDATE AVAILABLE: BloodyCore
-   Current Version: 1.2.0
-   Latest Version: 1.3.1
-   Release Date: 2023-12-15T10:30:00Z
-   Thunderstore URL: https://thunderstore.io/c/v-rising/p/Trodi/BloodyCore/
-
->> UPDATE AVAILABLE: Wetstone
-   Current Version: 1.0.0
-   Latest Version: 1.2.0
-   Release Date: 2023-12-10T08:15:22Z
-   Thunderstore URL: https://thunderstore.io/c/v-rising/p/molenzwiebel/Wetstone/
-
-! Updates are available for the plugins listed above.
-* Note: Updates must be installed manually - VCF only identifies available updates.
-```
-
-**OR if all plugins are up to date:**
-```
-[Info   : VampireCommandFramework] Version check completed for 15 plugins:
-* All plugins are up to date!
-```
-
-### Example In-Game Messages (Admin Authentication):
-When an admin authenticates, they receive individual messages for each available update:
-```
-[VCF] Starting plugin version check...
-[VCF] Found 15 installed plugins to check
-[VCF] Update available for BloodyCore: 1.2.0 -> 1.3.1
-[VCF] Update available for Wetstone: 1.0.0 -> 1.2.0
-[VCF] All installed plugins are up to date!
-```
-
-**Important Notes:** 
-- The automatic version checker **logs to the server console at startup** and **sends messages to admins when they authenticate**
-- The version checker **only identifies available updates** - it does not automatically download or install them
-- Updates must be installed manually by the server operator
-- The `.version` command provides a quick way for any player to see what's currently installed (without update checking)
-
+- `.version` - Lists all installed plugins and their current versions (admin only)
 
 
 ## Help
