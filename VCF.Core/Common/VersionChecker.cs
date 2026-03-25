@@ -46,27 +46,22 @@ internal static class VersionChecker
 	{
 		if (userEntity == default) return;
 
-		// Queue ECS operations for main thread execution to avoid IL2CPP threading issues
-		UnityMainThreadDispatcher.Enqueue(() =>
+		try
 		{
-			try
-			{
-				// Now we're on main thread - safe to access ECS components
-				if (VWorld.Server?.EntityManager == null) return;
-				if (!VWorld.Server.EntityManager.Exists(userEntity)) return;
-				if (!VWorld.Server.EntityManager.HasComponent<User>(userEntity)) return;
+			if (VWorld.Server?.EntityManager == null) return;
+			if (!VWorld.Server.EntityManager.Exists(userEntity)) return;
+			if (!VWorld.Server.EntityManager.HasComponent<User>(userEntity)) return;
 
-				var user = VWorld.Server.EntityManager.GetComponentData<User>(userEntity);
-				if (!user.IsConnected) return;
+			var user = VWorld.Server.EntityManager.GetComponentData<User>(userEntity);
+			if (!user.IsConnected) return;
 
-				var msg = new FixedString512Bytes(message);
-				ServerChatUtils.SendSystemMessageToClient(VWorld.Server.EntityManager, user, ref msg);
-			}
-			catch (Exception ex)
-			{
-				Log.Debug($"Could not send message to client (user may have disconnected): {ex.Message}");
-			}
-		});
+			var msg = new FixedString512Bytes(message);
+			ServerChatUtils.SendSystemMessageToClient(VWorld.Server.EntityManager, user, ref msg);
+		}
+		catch (Exception ex)
+		{
+			Log.Debug($"Could not send message to client (user may have disconnected): {ex.Message}");
+		}
 	}
 
 	static void LogInfoAndSendMessageToClient(Entity userEntity, string message)
