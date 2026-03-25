@@ -1,3 +1,4 @@
+using Unity.Entities;
 using VampireCommandFramework.Common;
 
 namespace VampireCommandFramework.Basics;
@@ -10,6 +11,6 @@ internal static class VersionCommands
 		// Get the user entity if this is a ChatCommandContext
 		var userEntity = ctx is ChatCommandContext chatCtx ? chatCtx.Event.SenderUserEntity : default;
 		
-		ThunderstoreVersionChecker.ListAllPluginVersions(userEntity);
+		VersionChecker.ListAllPluginVersions(userEntity);
 	}
 }
