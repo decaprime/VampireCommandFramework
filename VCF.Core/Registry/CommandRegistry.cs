@@ -42,6 +42,31 @@ public static class CommandRegistry
 	// Store pending commands for selection
 	private static Dictionary<string, (string input, List<(CommandMetadata Command, object[] Args, string Error)> commands)> _pendingCommands = new();
 
+	internal static ParsedCommandInput ParseInput(string input)
+	{
+		string afterPrefix = input.Substring(DEFAULT_PREFIX.Length);
+		int spaceIndex = afterPrefix.IndexOf(' ');
+		if (spaceIndex > 0)
+		{
+			string potentialAssemblyName = afterPrefix.Substring(0, spaceIndex);
+			bool isValidAssembly = AssemblyCommandMap.Keys.Any(an =>
+				an.Equals(potentialAssemblyName, StringComparison.OrdinalIgnoreCase));
+			if (isValidAssembly)
+			{
+				string afterAssembly = afterPrefix.Substring(spaceIndex + 1);
+				string commandInput = DEFAULT_PREFIX + afterAssembly;
+
+				// Only treat as assembly-qualified if that assembly has a matching command
+				var assemblyMatch = _cache.GetCommandFromAssembly(commandInput, potentialAssemblyName);
+				if (assemblyMatch != null && assemblyMatch.IsMatched)
+				{
+					return new ParsedCommandInput(potentialAssemblyName, commandInput, afterAssembly);
+				}
+			}
+		}
+		return new ParsedCommandInput(null, input, afterPrefix);
+	}
+
 	internal static CacheResult GetCommandFromCache(string input, string assemblyName = null)
 	{
 		if (assemblyName != null)
@@ -96,8 +121,9 @@ public static class CommandRegistry
 			return Enumerable.Empty<string>();
 		}
 
-		// Remove the prefix if it exists to match command names better
-		var normalizedInput = input[1..].ToLowerInvariant();
+		// Remove the prefix (and assembly if present) to match command names better
+		var parsed = ParseInput(input);
+		var normalizedInput = parsed.AfterPrefixAndAssembly.ToLowerInvariant();
 
 		var maxDistance = Math.Max(maxFixedDistance,
 								(int)Math.Ceiling(normalizedInput.Length * maxRelativeDistance));
@@ -227,34 +253,14 @@ public static class CommandRegistry
 			return CommandHistory.HandleHistoryCommand(ctx, input.Trim(), Handle, ExecuteCommandWithArgs);
 		}
 
-		// Remove the prefix for processing
-		string afterPrefix = input.Substring(DEFAULT_PREFIX.Length);
-
-		// Check if this could be an assembly-specific command
-		string assemblyName = null;
-		string commandInput = input; // Default to using the entire input
-
-		int spaceIndex = afterPrefix.IndexOf(' ');
-		if (spaceIndex > 0)
-		{
-			string potentialAssemblyName = afterPrefix.Substring(0, spaceIndex);
-
-			// Check if this could be a valid assembly name
-			bool isValidAssembly = AssemblyCommandMap.Keys.Any(assemblyName =>
-				assemblyName.Equals(potentialAssemblyName, StringComparison.OrdinalIgnoreCase));
-
-			if (isValidAssembly)
-			{
-				assemblyName = potentialAssemblyName;
-				commandInput = "." + afterPrefix.Substring(spaceIndex + 1);
-			}
-		}
+		// Parse assembly prefix, command, and remainder in one place
+		var parsed = ParseInput(input);
 
 		// Get command(s) based on input
 		CacheResult matchedCommand = null;
-		if (assemblyName != null)
+		if (parsed.HasAssembly)
 		{
-			matchedCommand = _cache.GetCommandFromAssembly(commandInput, assemblyName);
+			matchedCommand = _cache.GetCommandFromAssembly(parsed.CommandInput, parsed.AssemblyName);
 		}
 		if (matchedCommand == null || !matchedCommand.IsMatched)
 		{
@@ -279,7 +285,7 @@ public static class CommandRegistry
 		if (commands.Count() == 1)
 		{
 			var (command, args) = commands.First();
-			return ExecuteCommand(ctx, command, args, input);
+			return ExecuteCommand(ctx, command, args, parsed.CommandInput);
 		}
 
 		// Multiple commands match, try to convert parameters for each
@@ -290,7 +296,7 @@ public static class CommandRegistry
 		{
 			if (!CanCommandExecute(ctx, command)) continue;
 
-			var (success, commandArgs, error) = TryConvertParameters(ctx, command, args);
+			var (success, commandArgs, error) = TryConvertParameters(ctx, command, args, parsed.CommandInput);
 			if (success)
 			{
 				successfulCommands.Add((command, commandArgs, null));

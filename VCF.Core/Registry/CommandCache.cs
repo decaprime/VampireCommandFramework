@@ -171,10 +171,9 @@ internal class CommandCache
 						{
 							// Check if this remainder command can handle the provided parameter count
 							var remainderParams = remainderCmd.Method.GetParameters();
-							var requiredParams = remainderParams.Count(p => !p.HasDefaultValue) - 1; // Exclude _remainder itself
-							var maxParams = remainderParams.Length - 1; // Exclude _remainder
-							
-							if (parameters.Length >= requiredParams && parameters.Length <= maxParams)
+							var requiredParams = remainderParams.Count(p => !p.HasDefaultValue) - 2; // Exclude ctx and _remainder itself
+
+							if (parameters.Length >= requiredParams)
 							{
 								exactMatches.Add((remainderCmd, parameters));
 							}

@@ -47,6 +47,69 @@ namespace VCF.Tests
             }
         }
 
+		// Assembly + remainder-only command
+		public class MyMod1RemainderCommands
+		{
+			[Command("echo", description: "MyMod1 echo with remainder")]
+			public void EchoRemainder(ICommandContext ctx, string _remainder)
+			{
+				ctx.Reply($"MyMod1 remainder: '{_remainder}'");
+			}
+		}
+
+		// Assembly + param + remainder command
+		public class MyMod1ParamRemainderCommands
+		{
+			[Command("say", description: "MyMod1 say with prefix and remainder")]
+			public void SayWithRemainder(ICommandContext ctx, string prefix, string _remainder)
+			{
+				ctx.Reply($"MyMod1 {prefix}: {_remainder}");
+			}
+		}
+
+		// Assembly + grouped command + remainder
+		[CommandGroup("grp")]
+		public class MyMod1GroupedRemainderCommands
+		{
+			[Command("go", description: "MyMod1 grouped go with remainder")]
+			public void Go(ICommandContext ctx, string _remainder)
+			{
+				ctx.Reply($"MyMod1 grp go: '{_remainder}'");
+			}
+		}
+
+		// Assembly whose name collides with a command group name
+		public class GrpAssemblyCommands
+		{
+			[Command("unrelated", description: "Unrelated command in grp assembly")]
+			public void Unrelated(ICommandContext ctx)
+			{
+				ctx.Reply("grp assembly unrelated");
+			}
+		}
+
+		// Command group whose name collides with an assembly name
+		[CommandGroup("grp")]
+		public class GrpGroupCommands
+		{
+			[Command("go", description: "Go command in grp group")]
+			public void Go(ICommandContext ctx, string _remainder)
+			{
+				ctx.Reply($"grp group go: '{_remainder}'");
+			}
+		}
+
+		// Assembly + grouped command + shorthand group + remainder
+		[CommandGroup("msg", shortHand: "m")]
+		public class MyMod1ShorthandGroupRemainderCommands
+		{
+			[Command("send", description: "MyMod1 send with remainder")]
+			public void Send(ICommandContext ctx, string _remainder)
+			{
+				ctx.Reply($"MyMod1 msg send: '{_remainder}'");
+			}
+		}
+
 		#endregion
 
 		#region Helper Methods
@@ -81,7 +144,7 @@ namespace VCF.Tests
 						var newCommandMetadata = entry.Key with { AssemblyName = mockAssemblyName };
 						mockCommandCache[newCommandMetadata] = entry.Value;
 
-						// Update CommandCache
+						// Update CommandCache (_newCache)
 						foreach(var cacheEntry in CommandRegistry._cache._newCache.Values)
 						{
 							foreach(var commandList in cacheEntry.Values)
@@ -92,6 +155,18 @@ namespace VCF.Tests
 									{
 										commandList[i] = newCommandMetadata;
 									}
+								}
+							}
+						}
+
+						// Update CommandCache (_remainderCache)
+						foreach(var remainderList in CommandRegistry._cache._remainderCache.Values)
+						{
+							for (int i = 0; i < remainderList.Count; i++)
+							{
+								if (remainderList[i].Method == entry.Key.Method)
+								{
+									remainderList[i] = newCommandMetadata;
 								}
 							}
 						}
@@ -228,6 +303,95 @@ namespace VCF.Tests
             Assert.That(result2, Is.EqualTo(CommandResult.Success));
             ctx2.AssertReplyContains("MyMod2 test command executed");
         }
+
+		[Test]
+		public void AssemblySpecificCommand_WithRemainder_ExtractsCorrectly()
+		{
+			RegisterCommandsWithMockAssembly(typeof(MyMod1RemainderCommands), "MyMod1");
+
+			var ctx = new AssertReplyContext();
+			var result = CommandRegistry.Handle(ctx, ".MyMod1 echo hello world this is text");
+			Assert.That(result, Is.EqualTo(CommandResult.Success));
+			ctx.AssertReplyContains("MyMod1 remainder: 'hello world this is text'");
+		}
+
+		[Test]
+		public void AssemblySpecificCommand_WithParamAndRemainder_ExtractsCorrectly()
+		{
+			RegisterCommandsWithMockAssembly(typeof(MyMod1ParamRemainderCommands), "MyMod1");
+
+			var ctx = new AssertReplyContext();
+			var result = CommandRegistry.Handle(ctx, ".MyMod1 say INFO this is the message");
+			Assert.That(result, Is.EqualTo(CommandResult.Success));
+			ctx.AssertReplyContains("MyMod1 INFO: this is the message");
+		}
+
+		[Test]
+		public void AssemblySpecificCommand_GroupedWithRemainder_ExtractsCorrectly()
+		{
+			RegisterCommandsWithMockAssembly(typeof(MyMod1GroupedRemainderCommands), "MyMod1");
+
+			var ctx = new AssertReplyContext();
+			var result = CommandRegistry.Handle(ctx, ".MyMod1 grp go hello world");
+			Assert.That(result, Is.EqualTo(CommandResult.Success));
+			ctx.AssertReplyContains("MyMod1 grp go: 'hello world'");
+		}
+
+		[Test]
+		public void AssemblySpecificCommand_GroupedWithRemainder_EmptyRemainder()
+		{
+			RegisterCommandsWithMockAssembly(typeof(MyMod1GroupedRemainderCommands), "MyMod1");
+
+			var ctx = new AssertReplyContext();
+			var result = CommandRegistry.Handle(ctx, ".MyMod1 grp go");
+			Assert.That(result, Is.EqualTo(CommandResult.Success));
+			ctx.AssertReplyContains("MyMod1 grp go: ''");
+		}
+
+		[Test]
+		public void AssemblySpecificCommand_ShorthandGroupWithRemainder_FullAndShort()
+		{
+			RegisterCommandsWithMockAssembly(typeof(MyMod1ShorthandGroupRemainderCommands), "MyMod1");
+
+			// Full group name
+			var ctx1 = new AssertReplyContext();
+			var result1 = CommandRegistry.Handle(ctx1, ".MyMod1 msg send hello world");
+			Assert.That(result1, Is.EqualTo(CommandResult.Success));
+			ctx1.AssertReplyContains("MyMod1 msg send: 'hello world'");
+
+			// Shorthand group name
+			var ctx2 = new AssertReplyContext();
+			var result2 = CommandRegistry.Handle(ctx2, ".MyMod1 m send hello world");
+			Assert.That(result2, Is.EqualTo(CommandResult.Success));
+			ctx2.AssertReplyContains("MyMod1 msg send: 'hello world'");
+		}
+
+		[Test]
+		public void AssemblySpecificCommand_WithRemainder_EmptyRemainder()
+		{
+			RegisterCommandsWithMockAssembly(typeof(MyMod1RemainderCommands), "MyMod1");
+
+			var ctx = new AssertReplyContext();
+			var result = CommandRegistry.Handle(ctx, ".MyMod1 echo");
+			Assert.That(result, Is.EqualTo(CommandResult.Success));
+			ctx.AssertReplyContains("MyMod1 remainder: ''");
+		}
+
+		[Test]
+		public void AssemblyNameMatchesGroupName_FallsBackToGroupCommand()
+		{
+			// Register an assembly named "grp" that has no "go" command
+			RegisterCommandsWithMockAssembly(typeof(GrpAssemblyCommands), "grp");
+			// Register a command group named "grp" with a "go" command (in a different assembly)
+			CommandRegistry.RegisterCommandType(typeof(GrpGroupCommands));
+
+			// ".grp go hello" — assembly "grp" exists but has no "go" command,
+			// so it should fall back to global lookup and match the "grp" command group's "go" command
+			var ctx = new AssertReplyContext();
+			var result = CommandRegistry.Handle(ctx, ".grp go hello world");
+			Assert.That(result, Is.EqualTo(CommandResult.Success));
+			ctx.AssertReplyContains("grp group go: 'hello world'");
+		}
 
         #endregion
     }

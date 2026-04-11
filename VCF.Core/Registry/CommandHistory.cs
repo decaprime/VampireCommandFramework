@@ -269,32 +269,12 @@ public static class CommandHistory
                 return (null, null);
             }
 
-            // Remove the prefix for processing
-            string afterPrefix = input.Substring(CommandRegistry.DEFAULT_PREFIX.Length);
-
-            // Check if this could be an assembly-specific command
-            string assemblyName = null;
-            string commandInput = input;
-
-            int spaceIndex = afterPrefix.IndexOf(' ');
-            if (spaceIndex > 0)
-            {
-                string potentialAssemblyName = afterPrefix.Substring(0, spaceIndex);
-
-                // Check if this could be a valid assembly name
-                bool isValidAssembly = CommandRegistry.AssemblyCommandMap.Keys.Any(assemblyName =>
-                    assemblyName.Equals(potentialAssemblyName, StringComparison.OrdinalIgnoreCase));
-
-                if (isValidAssembly)
-                {
-                    assemblyName = potentialAssemblyName;
-                    commandInput = "." + afterPrefix.Substring(spaceIndex + 1);
-                }
-            }
+            // Parse assembly prefix, command, and remainder in one place
+            var parsed = CommandRegistry.ParseInput(input);
 
             // Get command(s) based on input - we need to access the cache through CommandRegistry
-            var matchedCommand = CommandRegistry.GetCommandFromCache(commandInput, assemblyName);
-            
+            var matchedCommand = CommandRegistry.GetCommandFromCache(parsed.CommandInput, parsed.AssemblyName);
+
             if (matchedCommand == null || !matchedCommand.IsMatched)
             {
                 matchedCommand = CommandRegistry.GetCommandFromCache(input);
@@ -312,7 +292,7 @@ public static class CommandHistory
             {
                 if (!CommandRegistry.CanCommandExecute(ctx, command)) continue;
 
-                var (success, commandArgs, error) = CommandRegistry.TryConvertParameters(ctx, command, cmdArgs, input);
+                var (success, commandArgs, error) = CommandRegistry.TryConvertParameters(ctx, command, cmdArgs, parsed.CommandInput);
                 if (success)
                 {
                     return (command, commandArgs);
