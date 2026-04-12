@@ -51,9 +51,9 @@ namespace VCF.Tests
 		public class MyMod1RemainderCommands
 		{
 			[Command("echo", description: "MyMod1 echo with remainder")]
-			public void EchoRemainder(ICommandContext ctx, string _remainder)
+			public void EchoRemainder(ICommandContext ctx, [Remainder] string message)
 			{
-				ctx.Reply($"MyMod1 remainder: '{_remainder}'");
+				ctx.Reply($"MyMod1 remainder: '{message}'");
 			}
 		}
 
@@ -61,9 +61,9 @@ namespace VCF.Tests
 		public class MyMod1ParamRemainderCommands
 		{
 			[Command("say", description: "MyMod1 say with prefix and remainder")]
-			public void SayWithRemainder(ICommandContext ctx, string prefix, string _remainder)
+			public void SayWithRemainder(ICommandContext ctx, string prefix, [Remainder] string body)
 			{
-				ctx.Reply($"MyMod1 {prefix}: {_remainder}");
+				ctx.Reply($"MyMod1 {prefix}: {body}");
 			}
 		}
 
@@ -72,9 +72,9 @@ namespace VCF.Tests
 		public class MyMod1GroupedRemainderCommands
 		{
 			[Command("go", description: "MyMod1 grouped go with remainder")]
-			public void Go(ICommandContext ctx, string _remainder)
+			public void Go(ICommandContext ctx, [Remainder] string message)
 			{
-				ctx.Reply($"MyMod1 grp go: '{_remainder}'");
+				ctx.Reply($"MyMod1 grp go: '{message}'");
 			}
 		}
 
@@ -93,9 +93,9 @@ namespace VCF.Tests
 		public class GrpGroupCommands
 		{
 			[Command("go", description: "Go command in grp group")]
-			public void Go(ICommandContext ctx, string _remainder)
+			public void Go(ICommandContext ctx, [Remainder] string message)
 			{
-				ctx.Reply($"grp group go: '{_remainder}'");
+				ctx.Reply($"grp group go: '{message}'");
 			}
 		}
 
@@ -104,9 +104,51 @@ namespace VCF.Tests
 		public class MyMod1ShorthandGroupRemainderCommands
 		{
 			[Command("send", description: "MyMod1 send with remainder")]
-			public void Send(ICommandContext ctx, string _remainder)
+			public void Send(ICommandContext ctx, [Remainder] string message)
 			{
-				ctx.Reply($"MyMod1 msg send: '{_remainder}'");
+				ctx.Reply($"MyMod1 msg send: '{message}'");
+			}
+		}
+
+		// Two admin-only remainder commands with the same command name but
+		// different non-remainder parameter counts, intended to be registered
+		// under two different mock assembly names.
+		public class AdminRemainderCommandsA
+		{
+			[Command("foo", adminOnly: true)]
+			public void FooA(ICommandContext ctx, string first, [Remainder] string rest)
+			{
+				ctx.Reply($"A: {first}/{rest}");
+			}
+		}
+
+		public class AdminRemainderCommandsB
+		{
+			[Command("foo", adminOnly: true)]
+			public void FooB(ICommandContext ctx, string first, string second, [Remainder] string rest)
+			{
+				ctx.Reply($"B: {first}/{second}/{rest}");
+			}
+		}
+
+		// Admin-only variant that would succeed conversion for any string arg.
+		public class AdminOnlyBarCommand
+		{
+			[Command("bar", adminOnly: true)]
+			public void BarAdmin(ICommandContext ctx, string first, [Remainder] string rest)
+			{
+				ctx.Reply($"admin bar: {first}/{rest}");
+			}
+		}
+
+		// Non-admin variant that requires an int first param and will therefore
+		// fail parameter conversion when called with a non-numeric first arg.
+		public class NonAdminBarCommand
+		{
+			[Command("bar")]
+			public void BarUser(ICommandContext ctx, int num, [Remainder] string rest)
+			{
+				ctx.Reply($"user bar: {num}/{rest}");
 			}
 		}
 
@@ -375,6 +417,63 @@ namespace VCF.Tests
 			var result = CommandRegistry.Handle(ctx, ".MyMod1 echo");
 			Assert.That(result, Is.EqualTo(CommandResult.Success));
 			ctx.AssertReplyContains("MyMod1 remainder: ''");
+		}
+
+		[Test]
+		public void MultiCandidate_AllAdminOnlyWithRemainder_NonAdmin_RepliesDenied()
+		{
+			// Reproduces the real-world `.announce addline` bug: multiple assemblies
+			// register the same command string, every candidate is adminOnly, and at
+			// least one uses [Remainder]. A non-admin caller used to see a bogus
+			// "Failed to execute command due to parameter conversion errors" header
+			// with an empty bullet list because both candidates were silently skipped
+			// by CanCommandExecute before any parameter conversion was attempted.
+			RegisterCommandsWithMockAssembly(typeof(AdminRemainderCommandsA), "FooModA");
+			RegisterCommandsWithMockAssembly(typeof(AdminRemainderCommandsB), "FooModB");
+
+			var ctx = new AssertReplyContext { IsAdmin = false };
+			var result = CommandRegistry.Handle(ctx, ".foo alpha beta gamma");
+
+			Assert.That(result, Is.EqualTo(CommandResult.Denied));
+			ctx.AssertReplyContains("[denied]");
+			ctx.AssertReplyDoesntContain("parameter conversion errors");
+		}
+
+		[Test]
+		public void MultiCandidate_AllAdminOnlyWithRemainder_Admin_StillDispatches()
+		{
+			// Guard: the fix must not regress the admin path. With both candidates
+			// admin-allowed, Handle should either execute one (Case 2) or show the
+			// disambiguation prompt (Case 3) — both return CommandResult.Success.
+			RegisterCommandsWithMockAssembly(typeof(AdminRemainderCommandsA), "FooModA");
+			RegisterCommandsWithMockAssembly(typeof(AdminRemainderCommandsB), "FooModB");
+
+			var ctx = new AssertReplyContext { IsAdmin = true };
+			var result = CommandRegistry.Handle(ctx, ".foo alpha beta gamma");
+
+			Assert.That(result, Is.EqualTo(CommandResult.Success));
+			ctx.AssertReplyDoesntContain("[denied]");
+			ctx.AssertReplyDoesntContain("parameter conversion errors");
+		}
+
+		[Test]
+		public void MultiCandidate_MixedDeniedAndConversionFailure_ReportsConversionErrorWithoutDenied()
+		{
+			// When one candidate is denied by middleware AND another candidate fails
+			// parameter conversion, the reply must report the real conversion error
+			// and must NOT mix the denied candidate into the bullet list — mislabelling
+			// a denial as a conversion error would be its own lie.
+			RegisterCommandsWithMockAssembly(typeof(AdminOnlyBarCommand), "BarModAdmin");
+			RegisterCommandsWithMockAssembly(typeof(NonAdminBarCommand), "BarModUser");
+
+			var ctx = new AssertReplyContext { IsAdmin = false };
+			var result = CommandRegistry.Handle(ctx, ".bar hello world");
+
+			Assert.That(result, Is.EqualTo(CommandResult.UsageError));
+			ctx.AssertReplyContains("Failed to execute command due to parameter conversion errors");
+			ctx.AssertReplyContains("BarModUser");
+			ctx.AssertReplyDoesntContain("BarModAdmin");
+			ctx.AssertReplyDoesntContain("[denied]");
 		}
 
 		[Test]

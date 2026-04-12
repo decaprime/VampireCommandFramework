@@ -20,9 +20,8 @@ internal class CommandCache
 		var p = parameters.Length;
 		var d = parameters.Where(p => p.HasDefaultValue).Count();
 		
-		bool hasRemainder = parameters.Length > 0 && 
-							parameters[parameters.Length - 1].Name == "_remainder" && 
-							parameters[parameters.Length - 1].ParameterType == typeof(string);
+		bool hasRemainder = parameters.Length > 0 &&
+							CommandRegistry.IsRemainderParameter(parameters[parameters.Length - 1]);
 		
 		if (!_newCache.ContainsKey(key))
 		{
@@ -45,7 +44,7 @@ internal class CommandCache
 		}
 		else
 		{
-			// Original logic for non-_remainder commands
+			// Original logic for non-remainder commands
 			for (var i = p - d; i <= p; i++)
 			{
 				_newCache[key] = _newCache.GetValueOrDefault(key, new()) ?? new();
@@ -101,7 +100,7 @@ internal class CommandCache
 						{
 							// Check if this remainder command can handle the provided parameter count
 							var remainderParams = remainderCmd.Method.GetParameters();
-							var requiredParams = remainderParams.Count(p => !p.HasDefaultValue) - 2; // Exclude ctx and _remainder itself
+							var requiredParams = remainderParams.Count(p => !p.HasDefaultValue) - 2; // Exclude ctx and the [Remainder] parameter itself
 							
 							if (parameters.Length >= requiredParams)
 							{
@@ -171,7 +170,7 @@ internal class CommandCache
 						{
 							// Check if this remainder command can handle the provided parameter count
 							var remainderParams = remainderCmd.Method.GetParameters();
-							var requiredParams = remainderParams.Count(p => !p.HasDefaultValue) - 2; // Exclude ctx and _remainder itself
+							var requiredParams = remainderParams.Count(p => !p.HasDefaultValue) - 2; // Exclude ctx and the [Remainder] parameter itself
 
 							if (parameters.Length >= requiredParams)
 							{

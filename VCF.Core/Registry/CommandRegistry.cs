@@ -98,12 +98,14 @@ public static class CommandRegistry
 		return true;
 	}
 
+	internal static bool IsRemainderParameter(ParameterInfo p)
+		=> p.ParameterType == typeof(string)
+		   && p.IsDefined(typeof(RemainderAttribute), inherit: false);
+
 	internal static bool HasRemainderParameter(CommandMetadata command)
 	{
 		if (command.Parameters.Length == 0) return false;
-		
-		var lastParam = command.Parameters[command.Parameters.Length - 1];
-		return lastParam.Name == "_remainder" && lastParam.ParameterType == typeof(string);
+		return IsRemainderParameter(command.Parameters[command.Parameters.Length - 1]);
 	}
 
 	internal static IEnumerable<string> FindCloseMatches(ICommandContext ctx, string input)
@@ -291,10 +293,15 @@ public static class CommandRegistry
 		// Multiple commands match, try to convert parameters for each
 		var successfulCommands = new List<(CommandMetadata Command, object[] Args, string Error)>();
 		var failedCommands = new List<(CommandMetadata Command, string Error)>();
+		var deniedCommands = new List<CommandMetadata>();
 
 		foreach (var (command, args) in commands)
 		{
-			if (!CanCommandExecute(ctx, command)) continue;
+			if (!CanCommandExecute(ctx, command))
+			{
+				deniedCommands.Add(command);
+				continue;
+			}
 
 			var (success, commandArgs, error) = TryConvertParameters(ctx, command, args, parsed.CommandInput);
 			if (success)
@@ -310,6 +317,16 @@ public static class CommandRegistry
 		// Case 1: No command succeeded
 		if (successfulCommands.Count == 0)
 		{
+			// If every candidate was rejected by middleware (e.g. all admin-only
+			// for a non-admin caller) and none actually failed parameter conversion,
+			// emit the same "[denied]" reply the single-command path uses instead of
+			// the misleading "parameter conversion errors" message.
+			if (failedCommands.Count == 0 && deniedCommands.Count > 0)
+			{
+				ctx.SysReply($"{"[denied]".Color(Color.Red)} {deniedCommands[0].Attribute.Name.ToString().Color(Color.Gold)}");
+				return CommandResult.Denied;
+			}
+
 			var sb = new StringBuilder();
 			sb.AppendLine($"{"[error]".Color(Color.Red)} Failed to execute command due to parameter conversion errors:");
 			foreach (var (command, error) in failedCommands)
@@ -441,7 +458,7 @@ public static class CommandRegistry
 	{
 		var argCount = args?.Length ?? 0;
 		var paramsCount = command.Parameters.Length;
-		var remainderIndex = paramsCount - 1; // _remainder is always last
+		var remainderIndex = paramsCount - 1; // the [Remainder] parameter is always last
 		
 		// Calculate minimum required parameters (non-optional, non-remainder)
 		var requiredParamCount = 0;
@@ -949,11 +966,20 @@ public static class CommandRegistry
 
 		var parameters = paramInfos.Skip(1).ToArray();
 
+		for (var i = 0; i < parameters.Length - 1; i++)
+		{
+			if (parameters[i].IsDefined(typeof(RemainderAttribute), inherit: false))
+			{
+				Log.Error($"Method {method.Name.ToString().Color(Color.Gold)} has [Remainder] on parameter {parameters[i].Name.ToString().Color(Color.Gold)} which is not the last parameter. [Remainder] must be on the last parameter. Command will be ignored.");
+				return;
+			}
+		}
+
 		var canConvert = parameters.All(param =>
 		{
-			if (param.Name == "_remainder" && param.ParameterType == typeof(string))
+			if (IsRemainderParameter(param))
 			{
-				Log.Debug($"Method {method.Name.ToString().Color(Color.Gold)} has a _remainder parameter");
+				Log.Debug($"Method {method.Name.ToString().Color(Color.Gold)} has a remainder parameter ({param.Name})");
 				return true;
 			}
 

@@ -17,21 +17,21 @@ namespace VCF.Tests
 		public class RemainderCommands
 		{
 			[Command("echo", description: "Echoes the remainder text")]
-			public void EchoRemainder(ICommandContext ctx, string _remainder)
+			public void EchoRemainder(ICommandContext ctx, [Remainder] string message)
 			{
-				ctx.Reply($"Remainder: '{_remainder}'");
+				ctx.Reply($"Remainder: '{message}'");
 			}
 
 			[Command("say", description: "Says something with a prefix")]
-			public void SayWithPrefix(ICommandContext ctx, string prefix, string _remainder)
+			public void SayWithPrefix(ICommandContext ctx, string prefix, [Remainder] string body)
 			{
-				ctx.Reply($"{prefix}: {_remainder}");
+				ctx.Reply($"{prefix}: {body}");
 			}
 
 			[Command("optional", description: "Command with optional parameter and remainder")]
-			public void OptionalWithRemainder(ICommandContext ctx, string required, int optional = 42, string _remainder = "")
+			public void OptionalWithRemainder(ICommandContext ctx, string required, int optional = 42, [Remainder] string reason = "")
 			{
-				ctx.Reply($"Required: {required}, Optional: {optional}, Remainder: '{_remainder}'");
+				ctx.Reply($"Required: {required}, Optional: {optional}, Remainder: '{reason}'");
 			}
 		}
 
@@ -44,9 +44,9 @@ namespace VCF.Tests
 			}
 
 			[Command("test", description: "Test with remainder")]
-			public void TestRemainder(ICommandContext ctx, string arg1, string _remainder)
+			public void TestRemainder(ICommandContext ctx, string arg1, [Remainder] string rest)
 			{
-				ctx.Reply($"Remainder test: {arg1}, '{_remainder}'");
+				ctx.Reply($"Remainder test: {arg1}, '{rest}'");
 			}
 		}
 
@@ -54,15 +54,15 @@ namespace VCF.Tests
 		public class GroupedRemainderCommands
 		{
 			[Command("go", description: "Go with remainder")]
-			public void Go(ICommandContext ctx, string _remainder)
+			public void Go(ICommandContext ctx, [Remainder] string message)
 			{
-				ctx.Reply($"Grp go: '{_remainder}'");
+				ctx.Reply($"Grp go: '{message}'");
 			}
 
 			[Command("tag", description: "Tag with prefix and remainder")]
-			public void Tag(ICommandContext ctx, string name, string _remainder)
+			public void Tag(ICommandContext ctx, string name, [Remainder] string description)
 			{
-				ctx.Reply($"Grp tag: {name}, '{_remainder}'");
+				ctx.Reply($"Grp tag: {name}, '{description}'");
 			}
 		}
 
@@ -70,18 +70,18 @@ namespace VCF.Tests
 		public class ShorthandGroupedRemainderCommands
 		{
 			[Command("send", description: "Send with remainder")]
-			public void Send(ICommandContext ctx, string _remainder)
+			public void Send(ICommandContext ctx, [Remainder] string message)
 			{
-				ctx.Reply($"Message: '{_remainder}'");
+				ctx.Reply($"Message: '{message}'");
 			}
 		}
 
 		public class MultiWordRemainderCommands
 		{
 			[Command("fancy thing", description: "Multi-word command with remainder")]
-			public void FancyThing(ICommandContext ctx, string _remainder)
+			public void FancyThing(ICommandContext ctx, [Remainder] string text)
 			{
-				ctx.Reply($"Fancy thing: '{_remainder}'");
+				ctx.Reply($"Fancy thing: '{text}'");
 			}
 		}
 
@@ -89,18 +89,27 @@ namespace VCF.Tests
 		public class GroupedMultiWordRemainderCommands
 		{
 			[Command("do thing", description: "Grouped multi-word command with remainder")]
-			public void DoThing(ICommandContext ctx, string _remainder)
+			public void DoThing(ICommandContext ctx, [Remainder] string filter)
 			{
-				ctx.Reply($"Stuff do thing: '{_remainder}'");
+				ctx.Reply($"Stuff do thing: '{filter}'");
+			}
+		}
+
+		public class InvalidRemainderPositionCommands
+		{
+			[Command("badremainder", description: "Has [Remainder] on a non-last parameter — should be rejected at registration")]
+			public void BadRemainder(ICommandContext ctx, [Remainder] string text, int trailing)
+			{
+				ctx.Reply($"{text} {trailing}");
 			}
 		}
 
 		public class DifferentWordCountShorthandCommands
 		{
 			[Command("long command", shortHand: "lc", description: "Different word count shorthand")]
-			public void LongCommand(ICommandContext ctx, string _remainder)
+			public void LongCommand(ICommandContext ctx, [Remainder] string args)
 			{
-				ctx.Reply($"Long command: '{_remainder}'");
+				ctx.Reply($"Long command: '{args}'");
 			}
 		}
 
@@ -108,9 +117,9 @@ namespace VCF.Tests
 		public class DifferentWordCountGroupShorthandCommands
 		{
 			[Command("run", description: "Different word count group shorthand")]
-			public void Run(ICommandContext ctx, string _remainder)
+			public void Run(ICommandContext ctx, [Remainder] string reason)
 			{
-				ctx.Reply($"Run: '{_remainder}'");
+				ctx.Reply($"Run: '{reason}'");
 			}
 		}
 
@@ -328,6 +337,18 @@ namespace VCF.Tests
 			var result2 = CommandRegistry.Handle(ctx2, ".mg run some reason here");
 			Assert.That(result2, Is.EqualTo(CommandResult.Success));
 			ctx2.AssertReplyContains("Run: 'some reason here'");
+		}
+
+		[Test]
+		public void Remainder_OnNonLastParameter_IsRejected()
+		{
+			CommandRegistry.RegisterCommandType(typeof(InvalidRemainderPositionCommands));
+
+			// Registration should refuse to install the command (it logs an error and returns).
+			// Invoking it should therefore fall through as an unknown command.
+			var ctx = new AssertReplyContext();
+			var result = CommandRegistry.Handle(ctx, ".badremainder hello 3");
+			Assert.That(result, Is.Not.EqualTo(CommandResult.Success));
 		}
 	}
 }

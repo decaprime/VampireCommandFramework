@@ -193,6 +193,23 @@ public class HelpTests
 	}
 
 	[Test]
+	public void GenerateHelpText_GeneratesUsage_RemainderParam()
+	{
+		var (commandName, _, description) = Any.ThreeStrings();
+		var paramName = Any.String();
+		var param = A.Fake<ParameterInfo>();
+		A.CallTo(() => param.Name).Returns(paramName);
+		A.CallTo(() => param.ParameterType).Returns(typeof(string));
+		A.CallTo(() => param.IsDefined(typeof(RemainderAttribute), false)).Returns(true);
+
+		var command = new CommandMetadata(new CommandAttribute(commandName, null, usage: null, description: description), null, null, null, new[] { param }, null, null, null);
+
+		var text = HelpCommands.GetShortHelp(command);
+
+		Assert.That(text, Is.EqualTo($".{commandName} <{paramName}...>"));
+	}
+
+	[Test]
 	public void FullHelp_Usage_Includes_IConverterUsage()
 	{
 		CommandRegistry.RegisterConverter(typeof(SomeTypeConverter));

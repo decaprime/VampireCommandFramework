@@ -160,11 +160,14 @@ internal static class HelpCommands
 		var usageText = command.Attribute.Usage;
 		if (string.IsNullOrWhiteSpace(usageText))
 		{
-			var usages = command.Parameters.Select(
-				p => !p.HasDefaultValue
+			var usages = command.Parameters.Select(p =>
+			{
+				if (CommandRegistry.IsRemainderParameter(p))
+					return $"<{p.Name}...>".Color(Color.LightGrey);
+				return !p.HasDefaultValue
 					? $"({p.Name})".Color(Color.LightGrey) // todo could compress this for the cases with no defaulting
-					: $"[{p.Name}={p.DefaultValue}]".Color(Color.Green)
-			);
+					: $"[{p.Name}={p.DefaultValue}]".Color(Color.Green);
+			});
 
 			usageText = string.Join(" ", usages);
 		}
