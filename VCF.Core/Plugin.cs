@@ -23,6 +23,8 @@ internal class Plugin : BasePlugin
 		_harmony = new Harmony(PluginInfo.PLUGIN_GUID);
 		_harmony.PatchAll();
 
+		Framework.ChatDrainPatch.Install();
+
 		CommandRegistry.RegisterCommandType(typeof(Basics.HelpCommands));
 		CommandRegistry.RegisterCommandType(typeof(Basics.BepInExConfigCommands));
 		CommandRegistry.RegisterCommandType(typeof(Basics.RepeatCommands));
