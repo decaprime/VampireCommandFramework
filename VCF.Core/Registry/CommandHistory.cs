@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using BepInEx;
 using VampireCommandFramework.Common;
 
@@ -20,16 +21,29 @@ public static class CommandHistory
     
     // Command history directory path
     private static string HistoryDirectory => Path.Combine(Path.Combine(Paths.ConfigPath, PluginInfo.PLUGIN_NAME), "CommandHistory");
-    
+
+	// Using a regular Queue with explicit locking instead of ConcurrentQueue so that the
+	// empty-check + thread-exit and enqueue + thread-start are each done as one atomic operation,
+	// preventing the save thread from exiting while new work is being enqueued.
+	private static readonly Queue<(string filePath, string[] inputs)> _saveQueue = new();
+	private static volatile bool _saveThreadRunning = false;
+
     #endregion
 
     #region Public Methods
     
     internal static void Reset()
     {
+        WaitOnSaves();
         _commandHistory.Clear();
         _loadedHistories.Clear();
     }
+
+	internal static void WaitOnSaves()
+	{
+		while (_saveThreadRunning)
+			Thread.Sleep(1);
+	}
 
 	internal static bool IsHistoryLoaded(string contextName)
     {
@@ -188,20 +202,53 @@ public static class CommandHistory
     {
         try
         {
-            if (!Directory.Exists(HistoryDirectory))
-            {
-                Directory.CreateDirectory(HistoryDirectory);
-            }
-
-            // Use a safe filename by replacing invalid characters
             var safeFileName = string.Join("_", contextName.Split(Path.GetInvalidFileNameChars()));
             string filePath = Path.Combine(HistoryDirectory, $"{safeFileName}.txt");
-            var inputsOnly = history.Select(h => h.input).ToArray();
-            File.WriteAllLines(filePath, inputsOnly);
+            var inputs = history.Select(h => h.input).ToArray();
+
+            lock (_saveQueue)
+            {
+                _saveQueue.Enqueue((filePath, inputs));
+                if (!_saveThreadRunning)
+                {
+                    _saveThreadRunning = true;
+                    new Thread(ProcessSaveQueue) { IsBackground = true, Name = "VCF-HistorySave" }.Start();
+                }
+            }
         }
         catch (Exception ex)
         {
             Log.Error($"Failed to save command history for context {contextName}: {ex.Message}");
+        }
+    }
+
+    private static bool TryDequeueFromSaveQueue(out (string filePath, string[] inputs) item)
+    {
+        lock (_saveQueue)
+        {
+            if (_saveQueue.TryDequeue(out item))
+                return true;
+
+            _saveThreadRunning = false;
+            return false;
+        }
+    }
+
+    private static void ProcessSaveQueue()
+    {
+        while (TryDequeueFromSaveQueue(out var item))
+        {
+            try
+            {
+                if (!Directory.Exists(HistoryDirectory))
+                    Directory.CreateDirectory(HistoryDirectory);
+
+                File.WriteAllLines(item.filePath, item.inputs);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to save command history to {item.filePath}: {ex.Message}");
+            }
         }
     }
 
