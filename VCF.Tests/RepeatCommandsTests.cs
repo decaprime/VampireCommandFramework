@@ -510,7 +510,7 @@ namespace VCF.Tests
             ctx.AssertReplyContains("10. .echo message1");
             
             // Get the full response to check message0 is not present
-            var fullReplyCtx = new AssertReplyContext();
+            var fullReplyCtx = new AssertReplyContext { Name = ctx.Name };
             CommandRegistry.Handle(fullReplyCtx, ".! list");
             Assert.That(fullReplyCtx.RepliedTextLfAndTrimmed().Contains("message0"), Is.False, 
                 "The oldest message should have been removed due to history size limit");
