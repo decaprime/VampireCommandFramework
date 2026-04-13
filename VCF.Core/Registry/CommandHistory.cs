@@ -297,13 +297,15 @@ public static class CommandHistory
             }
 
             _commandHistory[contextName] = reconstructedHistory;
-            _loadedHistories.Add(contextName);
         }
         catch (Exception ex)
         {
             Log.Error($"Failed to load command history for context {contextName}: {ex.Message}");
-            _loadedHistories.Add(contextName); // Mark as loaded to avoid repeated attempts
         }
+		finally
+		{
+			_loadedHistories.Add(contextName);
+		}
     }
 
     private static (CommandMetadata command, object[] args) ParseCommandForHistory(ICommandContext ctx, string input)
