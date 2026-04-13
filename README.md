@@ -70,6 +70,28 @@ public class AdminCommands
 ```
 - Executes with: `.admin ban PlayerName`
 
+## Remainder Parameters
+For commands that take free-form text (a message, a reason, a timezone ID), mark the final `string` parameter with `[Remainder]` to capture everything the user typed after the preceding arguments, with spacing and quotes preserved.
+
+```csharp
+[Command("say")]
+public void Say(ICommandContext ctx, string channel, [Remainder] string message)
+    => ctx.Reply($"[{channel}] {message}");
+```
+
+- `.say global hello everyone` → `channel = "global"`, `message = "hello everyone"`
+- `.say global "hello, friends!"` → `message = "\"hello, friends!\""` (quotes kept as typed)
+
+**Rules:**
+- Must be the **last** parameter. Violations are rejected at registration time.
+- Must be of type `string`.
+- Captures the rest of the raw input verbatim, including quotes, whitespace, and special characters.
+- Can be optional with a default value: `[Remainder] string reason = null`.
+- Parameters before the remainder are parsed normally: type conversion, defaults, and custom converters all still apply.
+- Composes with overloading: the framework picks a remainder variant when enough preceding arguments are present.
+
+Auto-generated `.help` output renders a remainder parameter as `<name...>`, distinct from `(name)` for required and `[name=default]` for optional, so users get a visual cue for free, unless you supply a manual `usage:` string on `[Command]`.
+
 ## Command Overloading
 You can now create multiple commands with the same name but different parameter types:
 
@@ -191,6 +213,26 @@ When a command isn't found, the system suggests up to 3 closest matches:
 Command not found: .tleport
 Did you mean: .teleport, .teleport-home, .tp
 ```
+
+### Free-form Text Arguments
+Some commands accept free-form text as their final argument, so you can type multi-word values (a message, a reason, a path) **without wrapping them in quotes**. For example:
+```
+.announce Server restart in 5 minutes
+```
+`Server restart in 5 minutes` is captured as a single argument. If you do type quotes, they're preserved as part of the text.
+
+You can spot these commands in `.help <command>`: each parameter is shown in a distinct shape so you can tell at a glance which one eats the rest of the line.
+- `(name)`: a **required** argument (single word or quoted).
+- `[name=default]`: an **optional** argument with a default value.
+- `<name...>`: a **remainder** argument that captures everything you type after the preceding arguments as this one value, spaces and all.
+
+So a help line like:
+```
+.announce (channel) <message...>
+```
+means `channel` is a single required word and `message...` eats everything else you type.
+
+Note: if a command's author supplied a custom usage string, `.help` shows that text verbatim instead of the shapes above, so the `<name...>` marker is only guaranteed for commands using the default help rendering.
 
 ### Plugin-Specific Commands
 Players can execute commands from specific plugins to avoid conflicts:
