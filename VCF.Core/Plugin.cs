@@ -37,6 +37,9 @@ internal class Plugin : BasePlugin
 
 	public override bool Unload()
 	{
+		if (!Breadstone.VWorld.IsServer)
+			return true;
+
 		_harmony.UnpatchSelf();
 		return true;
 	}
