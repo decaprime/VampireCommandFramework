@@ -24,6 +24,7 @@
 		<PackageReference Include="BepInEx.Core" Version="6.0.0-be.690" IncludeAssets="compile" />
 		<PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
+		<PackageReference Include="System.Text.Json" Version="8.0.5" />
 		<PackageReference Include="VRising.Unhollowed.Client" Version="1.1.*" />
 	</ItemGroup>
 

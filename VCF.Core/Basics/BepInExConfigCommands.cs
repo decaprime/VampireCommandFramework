@@ -58,7 +58,7 @@ public class BepInExConfigCommands
 
 			ctx.SysReply($"Set {def.Key} = {convertedValue}");
 		}
-		catch (Exception e)
+		catch (Exception)
 		{
 			throw ctx.Error($"Can not convert {value} to {entry.SettingType}");
 		}

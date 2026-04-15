@@ -9,7 +9,10 @@ public class AssertReplyContext : ICommandContext
 	private StringBuilder _sb = new();
 	public IServiceProvider Services => throw new NotImplementedException();
 
-	public string Name { get; set; } = nameof(AssertReplyContext);
+	public string Name { get; set; } = $"{nameof(AssertReplyContext)}_{Guid.NewGuid():N}";
+	
+	// Add unique identifier for each context instance
+	public string ContextId { get; set; } = Guid.NewGuid().ToString("N");
 
 	public bool IsAdmin { get; set; }
 
@@ -25,7 +28,7 @@ public class AssertReplyContext : ICommandContext
 
 	public void AssertReply(string expected)
 	{
-		Assert.That(RepliedTextLfAndTrimmed(), Is.EqualTo(expected));
+		Assert.That(RepliedTextLfAndTrimmed(), Is.EqualTo(expected.Replace("\r\n", "\n")));
 	}
 	public void AssertReplyContains(string expected)
 	{

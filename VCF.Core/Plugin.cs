@@ -8,7 +8,7 @@ namespace VampireCommandFramework;
 internal class Plugin : BasePlugin
 {
 	private Harmony _harmony;
-
+	
 	public override void Load()
 	{
 		Common.Log.Instance = Log;
@@ -23,9 +23,12 @@ internal class Plugin : BasePlugin
 		_harmony = new Harmony(PluginInfo.PLUGIN_GUID);
 		_harmony.PatchAll();
 
+		Framework.ChatDrainPatch.Install();
+
 		CommandRegistry.RegisterCommandType(typeof(Basics.HelpCommands));
 		CommandRegistry.RegisterCommandType(typeof(Basics.BepInExConfigCommands));
 		CommandRegistry.RegisterCommandType(typeof(Basics.RepeatCommands));
+		CommandRegistry.RegisterCommandType(typeof(Basics.VersionCommands));
 
 
 		IL2CPPChainloader.Instance.Plugins.TryGetValue(PluginInfo.PLUGIN_GUID, out var info);

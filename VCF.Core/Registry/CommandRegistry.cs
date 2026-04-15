@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using BepInEx;
 using VampireCommandFramework.Basics;
 using VampireCommandFramework.Common;
 using VampireCommandFramework.Registry;
@@ -29,6 +31,8 @@ public static class CommandRegistry
 		AssemblyCommandMap.Clear();
 		_converters.Clear();
 		_cache = new();
+		CommandHistory.Reset();
+		_pendingCommands.Clear();
 	}
 
 	// todo: document this default behavior, it's just not something to ship without but you can Middlewares.Claer();
@@ -38,8 +42,39 @@ public static class CommandRegistry
 	// Store pending commands for selection
 	private static Dictionary<string, (string input, List<(CommandMetadata Command, object[] Args, string Error)> commands)> _pendingCommands = new();
 
-	private static Dictionary<string, List<(string input, CommandMetadata Command, object[] Args)>> _commandHistory = new();
-	private const int MAX_COMMAND_HISTORY = 10; // Store up to 10 past commands
+	internal static ParsedCommandInput ParseInput(string input)
+	{
+		string afterPrefix = input.Substring(DEFAULT_PREFIX.Length);
+		int spaceIndex = afterPrefix.IndexOf(' ');
+		if (spaceIndex > 0)
+		{
+			string potentialAssemblyName = afterPrefix.Substring(0, spaceIndex);
+			bool isValidAssembly = AssemblyCommandMap.Keys.Any(an =>
+				an.Equals(potentialAssemblyName, StringComparison.OrdinalIgnoreCase));
+			if (isValidAssembly)
+			{
+				string afterAssembly = afterPrefix.Substring(spaceIndex + 1);
+				string commandInput = DEFAULT_PREFIX + afterAssembly;
+
+				// Only treat as assembly-qualified if that assembly has a matching command
+				var assemblyMatch = _cache.GetCommandFromAssembly(commandInput, potentialAssemblyName);
+				if (assemblyMatch != null && assemblyMatch.IsMatched)
+				{
+					return new ParsedCommandInput(potentialAssemblyName, commandInput, afterAssembly);
+				}
+			}
+		}
+		return new ParsedCommandInput(null, input, afterPrefix);
+	}
+
+	internal static CacheResult GetCommandFromCache(string input, string assemblyName = null)
+	{
+		if (assemblyName != null)
+		{
+			return _cache.GetCommandFromAssembly(input, assemblyName);
+		}
+		return _cache.GetCommand(input);
+	}
 
 	internal static bool CanCommandExecute(ICommandContext ctx, CommandMetadata command)
 	{
@@ -63,6 +98,16 @@ public static class CommandRegistry
 		return true;
 	}
 
+	internal static bool IsRemainderParameter(ParameterInfo p)
+		=> p.ParameterType == typeof(string)
+		   && p.IsDefined(typeof(RemainderAttribute), inherit: false);
+
+	internal static bool HasRemainderParameter(CommandMetadata command)
+	{
+		if (command.Parameters.Length == 0) return false;
+		return IsRemainderParameter(command.Parameters[command.Parameters.Length - 1]);
+	}
+
 	internal static IEnumerable<string> FindCloseMatches(ICommandContext ctx, string input)
 	{
 		// Look for the closest matches to the input command
@@ -78,8 +123,9 @@ public static class CommandRegistry
 			return Enumerable.Empty<string>();
 		}
 
-		// Remove the prefix if it exists to match command names better
-		var normalizedInput = input[1..].ToLowerInvariant();
+		// Remove the prefix (and assembly if present) to match command names better
+		var parsed = ParseInput(input);
+		var normalizedInput = parsed.AfterPrefixAndAssembly.ToLowerInvariant();
 
 		var maxDistance = Math.Max(maxFixedDistance,
 								(int)Math.Ceiling(normalizedInput.Length * maxRelativeDistance));
@@ -173,8 +219,6 @@ public static class CommandRegistry
 		return matrix[s.Length, t.Length];
 	}
 
-
-
 	private static void HandleBeforeExecute(ICommandContext ctx, CommandMetadata command)
 	{
 		Middlewares.ForEach(m => m.BeforeExecute(ctx, command.Attribute, command.Method));
@@ -187,6 +231,9 @@ public static class CommandRegistry
 
 	public static CommandResult Handle(ICommandContext ctx, string input)
 	{
+		// Load command history for this user if it's their first command this session
+		CommandHistory.EnsureHistoryLoaded(ctx);
+
 		// Check if this is a command selection (e.g., .1, .2, etc.)
 		if (input.StartsWith(DEFAULT_PREFIX) && input.Length > 1)
 		{
@@ -205,45 +252,24 @@ public static class CommandRegistry
 
 		if (input.Trim().StartsWith(".!"))
 		{
-			HandleCommandHistory(ctx, input.Trim());
-			return CommandResult.Success;
+			return CommandHistory.HandleHistoryCommand(ctx, input.Trim(), Handle, ExecuteCommandWithArgs);
 		}
 
-		// Remove the prefix for processing
-		string afterPrefix = input.Substring(DEFAULT_PREFIX.Length);
-
-		// Check if this could be an assembly-specific command
-		string assemblyName = null;
-		string commandInput = input; // Default to using the entire input
-
-		int spaceIndex = afterPrefix.IndexOf(' ');
-		if (spaceIndex > 0)
-		{
-			string potentialAssemblyName = afterPrefix.Substring(0, spaceIndex);
-
-			// Check if this could be a valid assembly name
-			bool isValidAssembly = AssemblyCommandMap.Keys.Any(a =>
-				a.GetName().Name.Equals(potentialAssemblyName, StringComparison.OrdinalIgnoreCase));
-
-			if (isValidAssembly)
-			{
-				assemblyName = potentialAssemblyName;
-				commandInput = "." + afterPrefix.Substring(spaceIndex + 1);
-			}
-		}
+		// Parse assembly prefix, command, and remainder in one place
+		var parsed = ParseInput(input);
 
 		// Get command(s) based on input
 		CacheResult matchedCommand = null;
-		if (assemblyName != null)
+		if (parsed.HasAssembly)
 		{
-			matchedCommand = _cache.GetCommandFromAssembly(commandInput, assemblyName);
+			matchedCommand = _cache.GetCommandFromAssembly(parsed.CommandInput, parsed.AssemblyName);
 		}
 		if (matchedCommand == null || !matchedCommand.IsMatched)
 		{
 			matchedCommand = _cache.GetCommand(input);
 		}
 
-		var (commands, args) = (matchedCommand.Commands, matchedCommand.Args);
+		var commands = matchedCommand.Commands;
 
 		if (!matchedCommand.IsMatched)
 		{
@@ -260,18 +286,24 @@ public static class CommandRegistry
 		// If there's only one command, handle it directly
 		if (commands.Count() == 1)
 		{
-			return ExecuteCommand(ctx, commands.First(), args, input);
+			var (command, args) = commands.First();
+			return ExecuteCommand(ctx, command, args, parsed.CommandInput);
 		}
 
 		// Multiple commands match, try to convert parameters for each
 		var successfulCommands = new List<(CommandMetadata Command, object[] Args, string Error)>();
 		var failedCommands = new List<(CommandMetadata Command, string Error)>();
+		var deniedCommands = new List<CommandMetadata>();
 
-		foreach (var command in commands)
+		foreach (var (command, args) in commands)
 		{
-			if (!CanCommandExecute(ctx, command)) continue;
+			if (!CanCommandExecute(ctx, command))
+			{
+				deniedCommands.Add(command);
+				continue;
+			}
 
-			var (success, commandArgs, error) = TryConvertParameters(ctx, command, args);
+			var (success, commandArgs, error) = TryConvertParameters(ctx, command, args, parsed.CommandInput);
 			if (success)
 			{
 				successfulCommands.Add((command, commandArgs, null));
@@ -285,11 +317,21 @@ public static class CommandRegistry
 		// Case 1: No command succeeded
 		if (successfulCommands.Count == 0)
 		{
+			// If every candidate was rejected by middleware (e.g. all admin-only
+			// for a non-admin caller) and none actually failed parameter conversion,
+			// emit the same "[denied]" reply the single-command path uses instead of
+			// the misleading "parameter conversion errors" message.
+			if (failedCommands.Count == 0 && deniedCommands.Count > 0)
+			{
+				ctx.SysReply($"{"[denied]".Color(Color.Red)} {deniedCommands[0].Attribute.Name.ToString().Color(Color.Gold)}");
+				return CommandResult.Denied;
+			}
+
 			var sb = new StringBuilder();
 			sb.AppendLine($"{"[error]".Color(Color.Red)} Failed to execute command due to parameter conversion errors:");
 			foreach (var (command, error) in failedCommands)
 			{
-				string assemblyInfo = command.Assembly.GetName().Name;
+				string assemblyInfo = command.AssemblyName;
 				sb.AppendLine($"  - {command.Attribute.Name} ({assemblyInfo}): {error}");
 			}
 			ctx.SysPaginatedReply(sb);
@@ -300,12 +342,13 @@ public static class CommandRegistry
 		if (successfulCommands.Count == 1)
 		{
 			var (command, commandArgs, _) = successfulCommands[0];
-			AddToCommandHistory(ctx.Name, input, command, commandArgs);
+			CommandHistory.AddToHistory(ctx, input, command, commandArgs);
 			return ExecuteCommandWithArgs(ctx, command, commandArgs);
 		}
 
 		// Case 3: Multiple commands succeeded - store and ask user to select
-		_pendingCommands[ctx.Name] = (input, successfulCommands);
+		var pendingKey = ctx.Name;
+		_pendingCommands[pendingKey] = (input, successfulCommands);
 
 		{
 			var sb = new StringBuilder();
@@ -313,7 +356,7 @@ public static class CommandRegistry
 			for (int i = 0; i < successfulCommands.Count; i++)
 			{
 				var (command, _, _) = successfulCommands[i];
-				var cmdAssembly = command.Assembly.GetName().Name;
+				var cmdAssembly = command.AssemblyName;
 				var description = command.Attribute.Description;
 				sb.AppendLine($" {("." + (i + 1).ToString()).Color(Color.Command)} - {cmdAssembly.Bold().Color(Color.Primary)} - {B(command.Attribute.Name)} {command.Attribute.Description}");
 				sb.AppendLine("   " + HelpCommands.GetShortHelp(command));
@@ -328,7 +371,9 @@ public static class CommandRegistry
 
 	private static CommandResult HandleCommandSelection(ICommandContext ctx, int selectedIndex)
 	{
-		if (!_pendingCommands.TryGetValue(ctx.Name, out var pendingCommands) || pendingCommands.commands.Count == 0)
+		var pendingKey = ctx.Name;
+		
+		if (!_pendingCommands.TryGetValue(pendingKey, out var pendingCommands) || pendingCommands.commands.Count == 0)
 		{
 			ctx.SysReply($"{"[error]".Color(Color.Red)} No command selection is pending.");
 			return CommandResult.CommandError;
@@ -342,18 +387,20 @@ public static class CommandRegistry
 
 		var (command, args, _) = pendingCommands.commands[selectedIndex - 1];
 
-		AddToCommandHistory(ctx.Name, pendingCommands.input, command, args);
+		CommandHistory.AddToHistory(ctx, pendingCommands.input, command, args);
 		var result = ExecuteCommandWithArgs(ctx, command, args);
-		_pendingCommands.Remove(ctx.Name);
+		_pendingCommands.Remove(pendingKey);
 		return result;
 	}
 
-	private static (bool Success, object[] Args, string Error) TryConvertParameters(ICommandContext ctx, CommandMetadata command, string[] args)
+	internal static (bool Success, object[] Args, string Error) TryConvertParameters(ICommandContext ctx, CommandMetadata command, string[] args, string originalInput = null)
 	{
 		var argCount = args?.Length ?? 0;
 		var paramsCount = command.Parameters.Length;
 		var commandArgs = new object[paramsCount + 1];
 		commandArgs[0] = ctx;
+
+		bool hasRemainder = HasRemainderParameter(command);
 
 		// Special case for commands with no parameters
 		if (paramsCount == 0 && argCount == 0)
@@ -361,118 +408,331 @@ public static class CommandRegistry
 			return (true, commandArgs, null);
 		}
 
-		// Handle parameter count mismatch
+		// Handle remainder commands with special logic
+		if (hasRemainder)
+		{
+			return TryConvertParametersWithRemainder(ctx, command, args, originalInput, commandArgs);
+		}
+
+		// Handle parameter count mismatch for non-remainder commands
 		if (argCount > paramsCount)
 		{
 			return (false, null, $"Too many parameters: expected {paramsCount.ToString().Color(Color.Gold)}, got {argCount.ToString().Color(Color.Gold)}");
 		}
-		else if (argCount < paramsCount)
+
+		// Handle missing parameters for non-remainder commands
+		if (argCount < paramsCount)
 		{
-			var canDefault = command.Parameters.Skip(argCount).All(p => p.HasDefaultValue);
+			var missingParams = command.Parameters.Skip(argCount);
+			var canDefault = missingParams.All(p => p.HasDefaultValue);
 			if (!canDefault)
 			{
 				return (false, null, $"Missing required parameters: expected {paramsCount.ToString().Color(Color.Gold)}, got {argCount.ToString().Color(Color.Gold)}");
 			}
+			
 			for (var i = argCount; i < paramsCount; i++)
 			{
 				commandArgs[i + 1] = command.Parameters[i].DefaultValue;
 			}
 		}
 
-		// If we have arguments to convert, process them
-		if (argCount > 0)
+		// Convert provided arguments for non-remainder commands
+		for (var i = 0; i < Math.Min(argCount, paramsCount); i++)
 		{
-			for (var i = 0; i < argCount; i++)
+			var param = command.Parameters[i];
+			var arg = args[i];
+			
+			var (success, convertedValue, error) = TryConvertSingleParameter(ctx, param, arg, i);
+			if (!success)
 			{
-				var param = command.Parameters[i];
-				var arg = args[i];
-				bool conversionSuccess = false;
-				string conversionError = null;
-
-				try
-				{
-					// Custom Converter
-					if (_converters.TryGetValue(param.ParameterType, out var customConverter))
-					{
-						var (converter, convertMethod, converterContextType) = customConverter;
-
-						// IMPORTANT CHANGE: Return special error code for unassignable context
-						if (!converterContextType.IsAssignableFrom(ctx.GetType()))
-						{
-							// Signal internal error with a special return format
-							return (false, null, $"INTERNAL_ERROR:Converter type {converterContextType.Name.ToString().Color(Color.Gold)} is not assignable from {ctx.GetType().Name.ToString().Color(Color.Gold)}");
-						}
-
-						object result;
-						var tryParseArgs = new object[] { ctx, arg };
-						try
-						{
-							result = convertMethod.Invoke(converter, tryParseArgs);
-							commandArgs[i + 1] = result;
-							conversionSuccess = true;
-						}
-						catch (TargetInvocationException tie)
-						{
-							if (tie.InnerException is CommandException e)
-							{
-								conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}";
-							}
-							else
-							{
-								conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter";
-							}
-						}
-						catch (Exception)
-						{
-							conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter";
-						}
-					}
-					else
-					{
-						var defaultConverter = TypeDescriptor.GetConverter(param.ParameterType);
-						try
-						{
-							var val = defaultConverter.ConvertFromInvariantString(arg);
-
-							// Separate, more robust enum validation
-							if (param.ParameterType.IsEnum)
-							{
-								bool isDefined = false;
-
-								// For numeric input, we need to check if the value is defined
-								if (int.TryParse(arg, out int enumIntVal))
-								{
-									isDefined = Enum.IsDefined(param.ParameterType, enumIntVal);
-
-									if (!isDefined)
-									{
-										return (false, null, $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Invalid enum value '{arg.ToString().Color(Color.Gold)}' for {param.ParameterType.Name.ToString().Color(Color.Gold)}");
-									}
-								}
-							}
-
-							commandArgs[i + 1] = val;
-							conversionSuccess = true;
-						}
-						catch (Exception e)
-						{
-							conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}";
-						}
-					}
-				}
-				catch (Exception ex)
-				{
-					conversionError = $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error: {ex.Message}";
-				}
-
-				if (!conversionSuccess)
-				{
-					return (false, null, conversionError);
-				}
+				return (false, null, error);
 			}
+			
+			commandArgs[i + 1] = convertedValue;
 		}
 
 		return (true, commandArgs, null);
+	}
+
+	private static (bool Success, object[] Args, string Error) TryConvertParametersWithRemainder(ICommandContext ctx, CommandMetadata command, string[] args, string originalInput, object[] commandArgs)
+	{
+		var argCount = args?.Length ?? 0;
+		var paramsCount = command.Parameters.Length;
+		var remainderIndex = paramsCount - 1; // the [Remainder] parameter is always last
+		
+		// Calculate minimum required parameters (non-optional, non-remainder)
+		var requiredParamCount = 0;
+		for (int i = 0; i < remainderIndex; i++)
+		{
+			if (!command.Parameters[i].HasDefaultValue)
+			{
+				requiredParamCount++;
+			}
+		}
+
+		// Check if we have enough arguments for required parameters
+		if (argCount < requiredParamCount)
+		{
+			return (false, null, $"Missing required parameters: expected at least {requiredParamCount.ToString().Color(Color.Gold)}, got {argCount.ToString().Color(Color.Gold)}");
+		}
+
+		// Try different strategies to split arguments between regular params and remainder
+		// Start from the maximum possible and work backwards to handle optional parameters
+		var maxNonRemainderArgs = Math.Min(argCount, remainderIndex);
+		
+		for (int splitPoint = maxNonRemainderArgs; splitPoint >= requiredParamCount; splitPoint--)
+		{
+			var (success, error) = TryConvertWithSplitPoint(ctx, command, args, originalInput, commandArgs, splitPoint);
+			if (success)
+			{
+				return (true, commandArgs, null);
+			}
+			
+			// If conversion failed due to parameter type mismatch and we have optional parameters,
+			// try with fewer parameters (let optional parameters use defaults)
+			if (error != null && error.Contains("Parameter") && splitPoint > requiredParamCount)
+			{
+				continue; // Try next split point
+			}
+			
+			// If it's a different kind of error or we're at minimum required, return it
+			if (splitPoint == requiredParamCount)
+			{
+				return (false, null, error);
+			}
+		}
+		
+		return (false, null, "Failed to parse parameters");
+	}
+
+	private static (bool Success, string Error) TryConvertWithSplitPoint(ICommandContext ctx, CommandMetadata command, string[] args, string originalInput, object[] commandArgs, int splitPoint)
+	{
+		var paramsCount = command.Parameters.Length;
+		var remainderIndex = paramsCount - 1;
+		
+		// Convert regular parameters up to split point
+		for (int i = 0; i < splitPoint; i++)
+		{
+			var param = command.Parameters[i];
+			var arg = args[i];
+			
+			var (success, convertedValue, error) = TryConvertSingleParameter(ctx, param, arg, i);
+			if (!success)
+			{
+				return (false, error);
+			}
+			
+			commandArgs[i + 1] = convertedValue;
+		}
+		
+		// Fill remaining optional parameters with defaults
+		for (int i = splitPoint; i < remainderIndex; i++)
+		{
+			var param = command.Parameters[i];
+			if (param.HasDefaultValue)
+			{
+				commandArgs[i + 1] = param.DefaultValue;
+			}
+			else
+			{
+				return (false, $"Parameter {i + 1} ({param.Name.ToString().Color(Color.Gold)}) is required but no value provided");
+			}
+		}
+		
+		// Handle remainder parameter
+		if (!string.IsNullOrEmpty(originalInput))
+		{
+			commandArgs[remainderIndex + 1] = ExtractRemainderFromOriginalInput(originalInput, command, remainderIndex, splitPoint);
+		}
+		else
+		{
+			var remainderArgs = args.Skip(splitPoint).ToArray();
+			commandArgs[remainderIndex + 1] = string.Join(" ", remainderArgs);
+		}
+		
+		return (true, null);
+	}
+
+	private static (bool Success, object ConvertedValue, string Error) TryConvertSingleParameter(ICommandContext ctx, ParameterInfo param, string arg, int paramIndex)
+	{
+		try
+		{
+			// Custom Converter
+			if (_converters.TryGetValue(param.ParameterType, out var customConverter))
+			{
+				var (converter, convertMethod, converterContextType) = customConverter;
+
+				if (!converterContextType.IsAssignableFrom(ctx.GetType()))
+				{
+					return (false, null, $"INTERNAL_ERROR:Converter type {converterContextType.Name.ToString().Color(Color.Gold)} is not assignable from {ctx.GetType().Name.ToString().Color(Color.Gold)}");
+				}
+
+				var tryParseArgs = new object[] { ctx, arg };
+				try
+				{
+					var result = convertMethod.Invoke(converter, tryParseArgs);
+					return (true, result, null);
+				}
+				catch (TargetInvocationException tie)
+				{
+					if (tie.InnerException is CommandException e)
+					{
+						return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}");
+					}
+					else
+					{
+						return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter");
+					}
+				}
+				catch (Exception)
+				{
+					return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error converting parameter");
+				}
+			}
+			else
+			{
+				var defaultConverter = TypeDescriptor.GetConverter(param.ParameterType);
+				try
+				{
+					var val = defaultConverter.ConvertFromInvariantString(arg);
+
+					// Separate, more robust enum validation
+					if (param.ParameterType.IsEnum)
+					{
+						bool isDefined = false;
+
+						// For numeric input, we need to check if the value is defined
+						if (int.TryParse(arg, out int enumIntVal))
+						{
+							isDefined = Enum.IsDefined(param.ParameterType, enumIntVal);
+
+							if (!isDefined)
+							{
+								return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): Invalid enum value '{arg.ToString().Color(Color.Gold)}' for {param.ParameterType.Name.ToString().Color(Color.Gold)}");
+							}
+						}
+					}
+
+					return (true, val, null);
+				}
+				catch (Exception e)
+				{
+					return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): {e.Message}");
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			return (false, null, $"Parameter {paramIndex + 1} ({param.Name.ToString().Color(Color.Gold)}): Unexpected error: {ex.Message}");
+		}
+	}
+
+	private static string ExtractRemainderFromOriginalInput(string originalInput, CommandMetadata command, int remainderParameterIndex, int splitPoint = -1)
+	{
+		// Remove the prefix (.)
+		var afterPrefix = originalInput.Substring(DEFAULT_PREFIX.Length);
+
+		// Count words to skip by detecting which name variant (full or shorthand) was used in the input
+		int commandWordCount = 0;
+
+		if (command.GroupAttribute != null)
+		{
+			var groupName = command.GroupAttribute.Name;
+			var groupShortHand = command.GroupAttribute.ShortHand;
+
+			if (groupShortHand != null && afterPrefix.StartsWith(groupShortHand + " ", StringComparison.OrdinalIgnoreCase))
+				commandWordCount += groupShortHand.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+			else
+				commandWordCount += groupName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+		}
+
+		var cmdName = command.Attribute.Name;
+		var cmdShortHand = command.Attribute.ShortHand;
+
+		if (cmdShortHand != null)
+		{
+			// Skip past the group words to check which command name variant follows
+			var checkPos = 0;
+			for (int w = 0; w < commandWordCount; w++)
+			{
+				while (checkPos < afterPrefix.Length && afterPrefix[checkPos] != ' ') checkPos++;
+				while (checkPos < afterPrefix.Length && afterPrefix[checkPos] == ' ') checkPos++;
+			}
+			var afterGroup = afterPrefix.Substring(checkPos);
+
+			if (afterGroup.StartsWith(cmdShortHand + " ", StringComparison.OrdinalIgnoreCase)
+				|| afterGroup.Equals(cmdShortHand, StringComparison.OrdinalIgnoreCase))
+				commandWordCount += cmdShortHand.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+			else
+				commandWordCount += cmdName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+		}
+		else
+		{
+			commandWordCount += cmdName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+		}
+
+		var pos = 0;
+		for (int w = 0; w < commandWordCount; w++)
+		{
+			while (pos < afterPrefix.Length && afterPrefix[pos] != ' ') pos++;
+			while (pos < afterPrefix.Length && afterPrefix[pos] == ' ') pos++;
+		}
+
+		if (pos >= afterPrefix.Length)
+			return "";
+
+		var parametersText = afterPrefix.Substring(pos);
+
+		// If remainder is the first parameter, return all parameters
+		if (remainderParameterIndex == 0)
+		{
+			return parametersText;
+		}
+
+		// We need to skip the first splitPoint parameters (or remainderParameterIndex if splitPoint not provided)
+		var parametersToSkip = splitPoint >= 0 ? splitPoint : remainderParameterIndex;
+		
+		// Parse through the parameters text respecting quotes
+		var currentParamIndex = 0;
+		var position = 0;
+		var inQuotes = false;
+
+		while (position < parametersText.Length && currentParamIndex < parametersToSkip)
+		{
+			var ch = parametersText[position];
+		
+			// Handle escaped quotes
+			if (ch == '\\' && position + 1 < parametersText.Length && parametersText[position + 1] == '"')
+			{
+				position += 2;
+				continue;
+			}
+		
+			if (ch == '"')
+			{
+				inQuotes = !inQuotes;
+			}
+			else if (ch == ' ' && !inQuotes)
+			{
+				// Skip consecutive spaces
+				while (position < parametersText.Length && parametersText[position] == ' ')
+				{
+					position++;
+				}
+				currentParamIndex++;
+				continue;
+			}
+		
+			position++;
+		}
+
+		// Return the remainder from this position
+		if (position < parametersText.Length)
+		{
+			return parametersText.Substring(position);
+		}
+
+		return "";
 	}
 
 	private static CommandResult ExecuteCommand(ICommandContext ctx, CommandMetadata command, string[] args, string input)
@@ -485,7 +745,7 @@ public static class CommandRegistry
 		}
 
 		// Try to convert parameters
-		var (success, commandArgs, error) = TryConvertParameters(ctx, command, args);
+		var (success, commandArgs, error) = TryConvertParameters(ctx, command, args, input);
 		if (!success)
 		{
 			// Check for special internal error flag
@@ -501,7 +761,7 @@ public static class CommandRegistry
 			return CommandResult.UsageError;
 		}
 
-		AddToCommandHistory(ctx.Name, input, command, commandArgs);
+		CommandHistory.AddToHistory(ctx, input, command, commandArgs);
 		return ExecuteCommandWithArgs(ctx, command, commandArgs);
 	}
 
@@ -574,74 +834,6 @@ public static class CommandRegistry
 		HandleAfterExecute(ctx, command);
 
 		return CommandResult.Success;
-	}
-
-	private static void AddToCommandHistory(string contextName, string input, CommandMetadata command, object[] args)
-	{
-		// Create the history list for this context if it doesn't exist yet
-		if (!_commandHistory.TryGetValue(contextName, out var history))
-		{
-			history = new List<(string input, CommandMetadata Command, object[] Args)>();
-			_commandHistory[contextName] = history;
-		}
-
-		// Add the new command to the beginning of the list
-		history.Insert(0, (input, command, args));
-
-		// Keep only the most recent MAX_COMMAND_HISTORY commands
-		if (history.Count > MAX_COMMAND_HISTORY)
-		{
-			history.RemoveAt(history.Count - 1);
-		}
-	}
-
-	private static void HandleCommandHistory(ICommandContext ctx, string input)
-	{
-		// Remove the ".!" prefix
-		string command = input.Substring(2).Trim();
-
-		// Check if the command history exists for this context
-		if (!_commandHistory.TryGetValue(ctx.Name, out var history) || history.Count == 0)
-		{
-			ctx.SysReply($"{"[error]".Color(Color.Red)} No command history available.");
-			return;
-		}
-
-		// Handle .! list or .! l commands
-		if (command == "list" || command == "l")
-		{
-			var sb = new StringBuilder();
-			sb.AppendLine("Command history:");
-
-			for (int i = 0; i < history.Count; i++)
-			{
-				sb.AppendLine($"{(i + 1).ToString().Color(Color.Gold)}. {history[i].input.Color(Color.Command)}");
-			}
-
-			ctx.SysPaginatedReply(sb);
-			return;
-		}
-
-		// Handle .! # to execute a specific command by number
-		if (int.TryParse(command, out int index) && index > 0 && index <= history.Count)
-		{
-			var selectedCommand = history[index - 1];
-			ctx.SysReply($"Executing command {index.ToString().Color(Color.Gold)}: {selectedCommand.input.Color(Color.Command)}");
-			ExecuteCommandWithArgs(ctx, selectedCommand.Command, selectedCommand.Args);
-			return;
-		}
-
-		// If just .! is provided, execute the most recent command
-		if (string.IsNullOrWhiteSpace(command))
-		{
-			var mostRecent = history[0];
-			ctx.SysReply($"Repeating most recent command: {mostRecent.input.Color(Color.Command)}");
-			ExecuteCommandWithArgs(ctx, mostRecent.Command, mostRecent.Args);
-			return;
-		}
-
-		// Invalid command
-		ctx.SysReply($"{"[error]".Color(Color.Red)} Invalid command history selection. Use {".! list".Color(Color.Command)} to see available commands or {".! #".Color(Color.Command)} to execute a specific command.");
 	}
 
 	public static void UnregisterConverter(Type converter)
@@ -774,8 +966,23 @@ public static class CommandRegistry
 
 		var parameters = paramInfos.Skip(1).ToArray();
 
+		for (var i = 0; i < parameters.Length - 1; i++)
+		{
+			if (parameters[i].IsDefined(typeof(RemainderAttribute), inherit: false))
+			{
+				Log.Error($"Method {method.Name.ToString().Color(Color.Gold)} has [Remainder] on parameter {parameters[i].Name.ToString().Color(Color.Gold)} which is not the last parameter. [Remainder] must be on the last parameter. Command will be ignored.");
+				return;
+			}
+		}
+
 		var canConvert = parameters.All(param =>
 		{
+			if (IsRemainderParameter(param))
+			{
+				Log.Debug($"Method {method.Name.ToString().Color(Color.Gold)} has a remainder parameter ({param.Name})");
+				return true;
+			}
+
 			if (_converters.ContainsKey(param.ParameterType))
 			{
 				Log.Debug($"Method {method.Name.ToString().Color(Color.Gold)} has a parameter of type {param.ParameterType.Name.ToString().Color(Color.Gold)} which is registered as a converter");
@@ -797,7 +1004,7 @@ public static class CommandRegistry
 
 		var constructorType = customConstructor?.GetParameters().Single().ParameterType;
 
-		var command = new CommandMetadata(commandAttr, assembly, method, customConstructor, parameters, first.ParameterType, constructorType, groupAttr);
+		var command = new CommandMetadata(commandAttr, assembly.GetName().Name, method, customConstructor, parameters, first.ParameterType, constructorType, groupAttr);
 
 		// todo include prefix and group in here, this shoudl be a string match
 		// todo handle collisons here
@@ -817,18 +1024,21 @@ public static class CommandRegistry
 			}
 		}
 
-		AssemblyCommandMap.TryGetValue(assembly, out var commandKeyCache);
+		var assemblyName = assembly.GetName().Name;
+		AssemblyCommandMap.TryGetValue(assemblyName, out var commandKeyCache);
 		commandKeyCache ??= new();
 		commandKeyCache[command] = keys;
-		AssemblyCommandMap[assembly] = commandKeyCache;
+		AssemblyCommandMap[assemblyName] = commandKeyCache;
 	}
 
-	internal static Dictionary<Assembly, Dictionary<CommandMetadata, List<string>>> AssemblyCommandMap { get; } = new();
+	internal static Dictionary<string, Dictionary<CommandMetadata, List<string>>> AssemblyCommandMap { get; } = new();
 
 	public static void UnregisterAssembly() => UnregisterAssembly(Assembly.GetCallingAssembly());
 
 	public static void UnregisterAssembly(Assembly assembly)
 	{
+		var assemblyName = assembly.GetName().Name;
+		
 		foreach (var type in assembly.DefinedTypes)
 		{
 			_cache.RemoveCommandsFromType(type);
@@ -838,6 +1048,6 @@ public static class CommandRegistry
 			// especially if you're hot reloading either.
 		}
 
-		AssemblyCommandMap.Remove(assembly);
+		AssemblyCommandMap.Remove(assemblyName);
 	}
 }

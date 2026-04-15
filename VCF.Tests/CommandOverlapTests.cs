@@ -33,11 +33,20 @@ public class CommandOverlapTests
 	[Test]
 	public void Does_FooBar_Overload_In_Order()
 	{
+		Format.Mode = Format.FormatMode.None;
 		AssertHandle(".foo", CommandResult.UsageError);
 		AssertHandle(".bar", CommandResult.UsageError);
 		AssertHandle(".foo foo", CommandResult.Success, withReply: "foo");
-		AssertHandle(".foo bar", CommandResult.Success, withReply: "foo");
+		AssertHandle(".foo bar", CommandResult.Success, withReply: "[vcf] Multiple commands match this input. Select one by typing .<#>:\n"+
+			                                                       " .1 - VCF.Tests - foo \n"+
+																   "   .foo (v)\n"+
+																   " .2 - VCF.Tests - foo bar \n"+
+																   "   .foo bar");
 		AssertHandle(".bar bar", CommandResult.Success, withReply: "bar");
-		AssertHandle(".bar foo", CommandResult.Success, withReply: "bar foo");
+		AssertHandle(".bar foo", CommandResult.Success, withReply: "[vcf] Multiple commands match this input. Select one by typing .<#>:\n" +
+																   " .1 - VCF.Tests - bar foo \n" +
+																   "   .bar foo\n"+
+																   " .2 - VCF.Tests - bar \n" +
+																   "   .bar (v)");
 	}
 }

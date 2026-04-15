@@ -24,7 +24,7 @@ internal static class HelpCommands
 		// If search is specified first look for matching assembly, then matching command
 		if (!string.IsNullOrEmpty(search))
 		{
-			var foundAssembly = CommandRegistry.AssemblyCommandMap.FirstOrDefault(x => x.Key.GetName().Name.StartsWith(search, StringComparison.OrdinalIgnoreCase));
+			var foundAssembly = CommandRegistry.AssemblyCommandMap.FirstOrDefault(x => x.Key.StartsWith(search, StringComparison.OrdinalIgnoreCase));
 			if (foundAssembly.Value != null)
 			{
 				StringBuilder sb = new();
@@ -67,7 +67,7 @@ internal static class HelpCommands
 			sb.AppendLine($"Use {B(".help <plugin>").Color(Color.Gold)} for commands in that plugin");
 			// List all plugins they have a command they can execute for
 			foreach (var assemblyName in CommandRegistry.AssemblyCommandMap.Where(x => x.Value.Keys.Any(c => CommandRegistry.CanCommandExecute(ctx, c)))
-																		   .Select(x => x.Key.GetName().Name)
+																		   .Select(x => x.Key)
 																		   .OrderBy(x => x))
 			{
 				sb.AppendLine($"{assemblyName.Color(Color.Lilac)}");
@@ -125,9 +125,9 @@ internal static class HelpCommands
 		ctx.SysPaginatedReply(sb);
 	}
 
-	static void PrintAssemblyHelp(ICommandContext ctx, KeyValuePair<Assembly, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb, string filter = null)
+	static void PrintAssemblyHelp(ICommandContext ctx, KeyValuePair<string, Dictionary<CommandMetadata, List<string>>> assembly, StringBuilder sb, string filter = null)
 	{
-		var name = assembly.Key.GetName().Name;
+		var name = assembly.Key;
 		name = _trailingLongDashRegex.Replace(name, "");
 
 		sb.AppendLine($"Commands from {name.Medium().Color(Color.Primary)}:".Underline());
@@ -160,11 +160,14 @@ internal static class HelpCommands
 		var usageText = command.Attribute.Usage;
 		if (string.IsNullOrWhiteSpace(usageText))
 		{
-			var usages = command.Parameters.Select(
-				p => !p.HasDefaultValue
+			var usages = command.Parameters.Select(p =>
+			{
+				if (CommandRegistry.IsRemainderParameter(p))
+					return $"<{p.Name}...>".Color(Color.LightGrey);
+				return !p.HasDefaultValue
 					? $"({p.Name})".Color(Color.LightGrey) // todo could compress this for the cases with no defaulting
-					: $"[{p.Name}={p.DefaultValue}]".Color(Color.Green)
-			);
+					: $"[{p.Name}={p.DefaultValue}]".Color(Color.Green);
+			});
 
 			usageText = string.Join(" ", usages);
 		}
